@@ -1,100 +1,108 @@
 import os
-import psycopg2
-from psycopg2.extras import RealDictCursor
-from fastapi import FastAPI, HTTPException, status
+import uvicorn
+from fastapi import FastAPI, HTTPException, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-from typing import Optional
+import psycopg2
+from psycopg2.pool import SimpleConnectionPool
+from psycopg2.extras import RealDictCursor
 
-# --- Database Connection ---
+# --- App Setup ---
+app = FastAPI(
+    title="IFSC Lookup API",
+    description="A simple API to find bank details from an IFSC code.",
+    version="1.0.0"
+)
 
-# Get the database connection string from an environment variable
-# This is a security best practice. We'll set this in our hosting platform.
-DATABASE_URL = os.environ.get("NEON_CONNECTION_STRING")
-
-def get_db_connection():
-    """Establishes a connection to the database."""
-    try:
-        conn = psycopg2.connect(DATABASE_URL)
-        return conn
-    except Exception as e:
-        print(f"Error connecting to database: {e}")
-        return None
-
-# --- API Models (Data Shape) ---
-
-# This defines what our API response will look like
-class BranchDetails(BaseModel):
-    bank: Optional[str]
-    ifsc: str
-    branch: Optional[str]
-    centre: Optional[str]
-    district: Optional[str]
-    state: Optional[str]
-    address: Optional[str]
-    contact: Optional[str]
-    imps: Optional[bool]
-    rtgs: Optional[bool]
-    city: Optional[str]
-    iso3166: Optional[str]
-    neft: Optional[bool]
-    micr: Optional[str]
-    upi: Optional[bool]
-    swift: Optional[str]
-
-# --- FastAPI App ---
-
-app = FastAPI()
-
-# --- CORS Middleware ---
-# This is CRITICAL. It allows your frontend website (on ifsclookup.in)
-# to make requests to this API (which will be on a different domain).
+# --- CORS (Cross-Origin Resource Sharing) ---
+# This allows your frontend (on ifsclookup.in) to talk to your API (on onrender.com)
 origins = [
     "http://localhost",
     "http://localhost:3000",
-    "https://ifsclookup.in",  # Your production domain
-    "https://www.ifsclookup.in", # www version
+    "https://ifsclookup.in",  # Your main domain
+    "https://*.onrender.com"  # Allow all render subdomains (for your static site)
 ]
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # For simplicity, we'll allow all. Can restrict to `origins` later.
+    allow_origins=origins,
     allow_credentials=True,
-    allow_methods=["*"],  # Allows all methods (GET, POST, etc.)
+    allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# --- API Endpoints ---
+# --- Database Connection Pool ---
+db_pool = None
 
+async def get_db_conn():
+    """
+    Gets a connection from the pool.
+    """
+    global db_pool
+    if db_pool is None:
+        try:
+            # Get the connection string from the environment variable
+            conn_string = os.environ.get("NEON_CONNECTION_STRING")
+            if not conn_string:
+                raise Exception("NEON_CONNECTION_STRING environment variable not set.")
+                
+            db_pool = SimpleConnectionPool(1, 5, dsn=conn_string)
+            print("Database connection pool created.")
+        except Exception as e:
+            print(f"Error creating connection pool: {e}")
+            return None
+            
+    try:
+        conn = db_pool.getconn()
+        return conn
+    except Exception as e:
+        print(f"Error getting connection from pool: {e}")
+        return None
+
+def put_db_conn(conn):
+    """
+    Returns a connection to the pool.
+    """
+    if db_pool:
+        db_pool.putconn(conn)
+
+async def close_db_pool():
+    """
+    Closes all connections in the pool on shutdown.
+    """
+    if db_pool:
+        db_pool.closeall()
+        print("Database connection pool closed.")
+
+app.add_event_handler("shutdown", close_db_pool)
+
+# --- API Endpoints ---
 @app.get("/")
 def read_root():
-    """A simple root endpoint to check if the API is running."""
     return {"status": "ok", "message": "IFSC Lookup API is running"}
 
+@app.get("/ifsc/{query_ifsc}")
+async def get_ifsc_details(query_ifsc: str):
+    # --- THE FIX (V3) ---
+    # We must ensure the input parameter `query_ifsc` is ALSO uppercased
+    # to match the uppercased database value.
+    search_code = query_ifsc.upper()
 
-@app.get("/ifsc/{ifsc_code}", response_model=BranchDetails, status_code=status.HTTP_200_OK)
-def get_ifsc_details(ifsc_code: str):
-    """
-    Takes an IFSC code, queries the database, and returns the branch details.
-    """
-    
-    # Sanitize and format the input
-    query_ifsc = ifsc_code.strip().upper()
-    
-    conn = get_db_connection()
+    conn = await get_db_conn()
     if conn is None:
         raise HTTPException(status_code=503, detail="Database connection error")
-
+        
+    branch = None
     try:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
             # RealDictCursor returns results as dictionaries (like JSON)
-            cur.execute("SELECT * FROM branches WHERE REGEXP_REPLACE(UPPER(ifsc), '[^A-Z0-9]', '', 'g') = %s", (query_ifsc,))
+            
+            # We now compare our uppercased `search_code` variable
+            cur.execute("SELECT * FROM branches WHERE REGEXP_REPLACE(UPPER(ifsc), '[^A-Z0-9]', '', 'g') = %s", (search_code,))
             branch = cur.fetchone()
         
         if branch:
             return branch
         else:
-            # If no branch is found, return a 404 error
             raise HTTPException(status_code=404, detail="IFSC code not found")
             
     except Exception as e:
@@ -103,7 +111,5 @@ def get_ifsc_details(ifsc_code: str):
         
     finally:
         if conn:
-
-            conn.close()
-
+            put_db_conn(conn)
 
