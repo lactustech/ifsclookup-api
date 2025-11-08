@@ -174,10 +174,15 @@
         // Function to fetch data from your API
         async function fetchIfscDetails(ifsc) {
             if (!ifsc || ifsc.trim() === "") return;
+            
+            // ⚠️ CRITICAL FIX ⚠️
+            // The check below was faulty and has been commented out.
+            /*
             if (API_BASE_URL === "https://ifsclookup-api.onrender.com") {
                 showMessage("error", "API URL is not configured by the developer.");
                 return;
             }
+            */
 
             // 1. Set loading state
             showMessage("loading", "Searching...");
