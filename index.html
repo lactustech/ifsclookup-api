@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IFSC Lookup | Find Bank Branch Details Instantly</title>
+    <meta name="description" content="Search and find any bank branch's IFSC code, address, contact, and more. Fast and free IFSC lookup for all Indian banks.">
+    <!-- 1. Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- 2. Google Font (Inter) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Simple loading spinner */
+        .loader {
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body class="bg-gray-50">
+
+    <!-- Header -->
+    <header class="bg-white shadow-sm">
+        <div class="container mx-auto max-w-4xl px-4 py-4">
+            <h1 class="text-2xl font-bold text-blue-700">ifsclookup.in</h1>
+            <p class="text-gray-600">Your Fast & Free Indian Bank IFSC Code Finder</p>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container mx-auto max-w-4xl p-4 mt-8">
+        
+        <!-- Search Section -->
+        <div class="bg-white p-6 rounded-lg shadow-md">
+            <h2 class="text-xl font-semibold text-gray-800 mb-4">Find Bank Details by IFSC Code</h2>
+            <form id="ifsc-form" class="flex flex-col sm:flex-row gap-4">
+                <input 
+                    type="text" 
+                    id="ifsc-input" 
+                    name="ifsc"
+                    placeholder="Enter 11-digit IFSC code (e.g., SBIN0000628)" 
+                    class="flex-grow p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    required
+                    maxlength="11"
+                    minlength="11"
+                    pattern="[A-Z]{4}0[A-Z0-9]{6}"
+                    title="Please enter a valid 11-character IFSC code (e.g., SBIN0000628)"
+                >
+                <button 
+                    type="submit" 
+                    id="search-button"
+                    class="bg-blue-600 text-white font-semibold py-3 px-6 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition duration-200"
+                >
+                    Search
+                </button>
+            </form>
+            <p class="text-xs text-gray-500 mt-2">Example: HDFC0000060, ICIC0000104, KKBK0000631</p>
+        </div>
+
+        <!-- Results Section -->
+        <div id="results-container" class="mt-8">
+            <!-- This is a placeholder for messages (loading, error, info) -->
+            <div id="message-box" class="text-center p-4"></div>
+
+            <!-- This card will be filled with data by JavaScript -->
+            <div id="results-card" class="bg-white rounded-lg shadow-md overflow-hidden hidden">
+                <div class="bg-gray-100 p-4 border-b border-gray-200">
+                    <h3 class="text-lg font-semibold text-gray-900" id="result-bank-branch"></h3>
+                    <p class="text-sm text-gray-600" id="result-bank-name"></p>
+                </div>
+                <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- Column 1 -->
+                    <div>
+                        <h4 class="font-semibold text-gray-700">Branch Info</h4>
+                        <div class="mt-2 text-sm text-gray-600">
+                            <p class="py-2 border-b border-gray-100">
+                                <strong class="text-gray-800">IFSC:</strong> 
+                                <span id="result-ifsc" class="font-mono"></span>
+                                <button onclick="copyToClipboard('result-ifsc')" class="ml-2 text-xs text-blue-500 hover:text-blue-700">copy</button>
+                            </p>
+                            <p class="py-2 border-b border-gray-100">
+                                <strong class="text-gray-800">MICR:</strong> 
+                                <span id="result-micr" class="font-mono"></span>
+                                <button onclick="copyToClipboard('result-micr')" class="ml-2 text-xs text-blue-500 hover:text-blue-700">copy</button>
+                            </p>
+                            <p class="py-2 border-b border-gray-100">
+                                <strong class="text-gray-800">Contact:</strong> 
+                                <span id="result-contact"></span>
+                            </p>
+                        </div>
+                    </div>
+                    <!-- Column 2 -->
+                    <div>
+                        <h4 class="font-semibold text-gray-700">Location</h4>
+                        <div class="mt-2 text-sm text-gray-600">
+                            <p class="py-2 border-b border-gray-100">
+                                <strong class="text-gray-800">Address:</strong> 
+                                <span id="result-address"></span>
+                            </p>
+                            <p class="py-2 border-b border-gray-100">
+                                <strong class="text-gray-800">City:</strong> 
+                                <span id="result-city"></span>
+                            </p>
+                            <p class="py-2 border-b border-gray-100">
+                                <strong class="text-gray-800">State:</strong> 
+                                <span id="result-state"></span>
+                            </p>
+                        </div>
+                    </div>
+                    <!-- Column 3 (Full Width) -->
+                    <div class="md:col-span-2">
+                         <h4 class="font-semibold text-gray-700">Payment Services</h4>
+                         <div class="mt-2 flex flex-wrap gap-2">
+                            <span id="service-neft" class="px-3 py-1 text-xs font-medium rounded-full"></span>
+                            <span id="service-rtgs" class="px-3 py-1 text-xs font-medium rounded-full"></span>
+                            <span id="service-imps" class="px-3 py-1 text-xs font-medium rounded-full"></span>
+                            <span id="service-upi" class="px-3 py-1 text-xs font-medium rounded-full"></span>
+                         </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="text-center p-8 mt-12 text-gray-500 text-sm">
+        <p>&copy; 2025 ifsclookup.in - A free utility. All data is sourced from respective banks and financial institutions.</p>
+    </footer>
+
+    <!-- 3. JavaScript -->
+    <script>
+        // --- START: CONFIGURATION ---
+        
+        // ⚠️ CRITICAL STEP ⚠️
+        // Paste your public API URL from Render.com here.
+        // It should look like: "https://ifsclookup-api.onrender.com"
+        const API_BASE_URL = "https://ifsclookup-api.onrender.com/"; 
+        
+        // --- END: CONFIGURATION ---
+
+
+        // Get references to all our HTML elements
+        const ifscForm = document.getElementById('ifsc-form');
+        const ifscInput = document.getElementById('ifsc-input');
+        const searchButton = document.getElementById('search-button');
+        const messageBox = document.getElementById('message-box');
+        const resultsCard = document.getElementById('results-card');
+
+        // Function to handle the form submission
+        async function handleFormSubmit(event) {
+            event.preventDefault(); // Stop the form from reloading the page
+            const ifsc = ifscInput.value;
+            
+            // Update the URL in the browser bar (for SEO and link sharing)
+            // This changes "ifsclookup.in" to "ifsclookup.in/SBIN0000628"
+            window.history.pushState({ ifsc: ifsc }, null, `/${ifsc.toUpperCase()}`);
+            
+            await fetchIfscDetails(ifsc);
+        }
+
+        // Function to fetch data from your API
+        async function fetchIfscDetails(ifsc) {
+            if (!ifsc || ifsc.trim() === "") return;
+            if (API_BASE_URL === "YOUR_RENDER_API_URL_GOES_HERE") {
+                showMessage("error", "API URL is not configured by the developer.");
+                return;
+            }
+
+            // 1. Set loading state
+            showMessage("loading", "Searching...");
+            searchButton.disabled = true;
+            searchButton.textContent = "Searching...";
+
+            try {
+                // 2. Make the API call
+                const response = await fetch(`${API_BASE_URL}/ifsc/${ifsc}`);
+                
+                if (response.status === 404) {
+                    throw new Error("IFSC code not found");
+                }
+                if (!response.ok) {
+                    throw new Error("An error occurred while fetching data.");
+                }
+                
+                const data = await response.json();
+                
+                // 3. Populate the results card
+                populateResults(data);
+                
+                // 4. Clear message and show card
+                showMessage("clear");
+                resultsCard.classList.remove('hidden');
+
+            } catch (error) {
+                // 5. Handle errors
+                if (error.message === "IFSC code not found") {
+                    showMessage("error", `No details found for IFSC code <strong>${ifsc.toUpperCase()}</strong>. Please check the code and try again.`);
+                } else {
+                    showMessage("error", "An error occurred. Please try again later.");
+                }
+                resultsCard.classList.add('hidden'); // Hide old results
+            } finally {
+                // 6. Reset loading state
+                searchButton.disabled = false;
+                searchButton.textContent = "Search";
+            }
+        }
+
+        // Function to put the data into the HTML
+        function populateResults(data) {
+            document.getElementById('result-bank-branch').textContent = data.branch || 'N/A';
+            document.getElementById('result-bank-name').textContent = data.bank || 'N/A';
+            
+            document.getElementById('result-ifsc').textContent = data.ifsc || 'N/A';
+            document.getElementById('result-micr').textContent = data.micr || 'N/A';
+            document.getElementById('result-contact').textContent = data.contact || 'N/A';
+            
+            document.getElementById('result-address').textContent = data.address || 'N/A';
+            document.getElementById('result-city').textContent = data.city || 'N/A';
+            document.getElementById('result-state').textContent = data.state || 'N/A';
+
+            // Helper to style the service tags
+            const setServiceStatus = (id, enabled) => {
+                const el = document.getElementById(id);
+                if (enabled) {
+                    el.textContent = id.replace('service-', '').toUpperCase();
+                    el.className = 'px-3 py-1 text-xs font-medium rounded-full bg-green-100 text-green-800';
+                } else {
+                    el.textContent = id.replace('service-', '').toUpperCase();
+                    el.className = 'px-3 py-1 text-xs font-medium rounded-full bg-gray-100 text-gray-800';
+                }
+            };
+
+            setServiceStatus('service-neft', data.neft);
+            setServiceStatus('service-rtgs', data.rtgs);
+            setServiceStatus('service-imps', data.imps);
+            setServiceStatus('service-upi', data.upi);
+        }
+
+        // Function to show loading/error messages
+        function showMessage(type, message = "") {
+            messageBox.innerHTML = ""; // Clear
+            if (type === "loading") {
+                messageBox.innerHTML = `<div class="flex justify-center items-center gap-2 text-gray-600">
+                                            <div class="loader"></div>
+                                            <span>${message}</span>
+                                        </div>`;
+            } else if (type === "error") {
+                messageBox.innerHTML = `<div class="bg-red-100 border border-red-300 text-red-800 p-4 rounded-md">${message}</div>`;
+            } else if (type === "info") {
+                messageBox.innerHTML = `<div class="bg-blue-100 border border-blue-300 text-blue-800 p-4 rounded-md">${message}</div>`;
+            }
+        }
+        
+        // Function to copy text to clipboard
+        // Note: This works in most browser contexts, but may have issues in sandboxed iframes
+        function copyToClipboard(elementId) {
+            try {
+                const text = document.getElementById(elementId).textContent;
+                const textArea = document.createElement("textarea");
+                textArea.value = text;
+                document.body.appendChild(textArea);
+                textArea.select();
+                document.execCommand("copy"); // Using execCommand for wider compatibility
+                document.body.removeChild(textArea);
+                // Simple feedback (optional)
+                showMessage("info", `Copied "${text}" to clipboard!`);
+            } catch (err) {
+                showMessage("error", "Failed to copy text.");
+            }
+        }
+
+        // --- Page Load Logic ---
+
+        // Listen for the form to be submitted
+        ifscForm.addEventListener('submit', handleFormSubmit);
+        
+        // This is the "programmatic SEO" part!
+        // Check if the user loaded a URL like /SBIN0000628
+        document.addEventListener('DOMContentLoaded', () => {
+            const path = window.location.pathname.replace('/', '').trim();
+            if (path.length === 11) {
+                // If the path looks like an IFSC code,
+                // put it in the search box and auto-search for it.
+                ifscInput.value = path.toUpperCase();
+                fetchIfscDetails(path.toUpperCase());
+            } else {
+                showMessage("info", "Enter an IFSC code to get started.");
+            }
+        });
+        
+    </script>
+</body>
+</html>
