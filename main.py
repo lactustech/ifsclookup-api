@@ -14,20 +14,14 @@ app = FastAPI(
 )
 
 # --- CORS (Cross-Origin Resource Sharing) ---
-# This allows your frontend (on ifsclookup.in) to talk to your API (on onrender.com)
-origins = [
-    "http://localhost",
-    "http://localhost:3000",
-    "https://ifsclookup.in",  # Your main domain
-    "https://*.onrender.com"  # Allow all render subdomains (for your static site)
-]
-
+# THIS IS THE FIX: We are allowing all domains to make
+# requests. This is the simplest and most robust fix.
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=["*"],  # Allow all origins
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["*"],  # Allow all methods (GET, POST, etc.)
+    allow_headers=["*"],  # Allow all headers
 )
 
 # --- Database Connection Pool ---
@@ -82,9 +76,8 @@ def read_root():
 
 @app.get("/ifsc/{query_ifsc}")
 async def get_ifsc_details(query_ifsc: str):
-    # --- THE FIX (V3) ---
-    # We must ensure the input parameter `query_ifsc` is ALSO uppercased
-    # to match the uppercased database value.
+    # --- THE FIX (V4) ---
+    # We will uppercase the user's input to match our clean database.
     search_code = query_ifsc.upper()
 
     conn = await get_db_conn()
@@ -96,8 +89,10 @@ async def get_ifsc_details(query_ifsc: str):
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
             # RealDictCursor returns results as dictionaries (like JSON)
             
-            # We now compare our uppercased `search_code` variable
-            cur.execute("SELECT * FROM branches WHERE REGEXP_REPLACE(UPPER(ifsc), '[^A-Z0-9]', '', 'g') = %s", (search_code,))
+            # --- THE FIX (V4) ---
+            # Since our load script now cleans the data, we can use
+            # a simple, fast, and indexed query.
+            cur.execute("SELECT * FROM branches WHERE ifsc = %s", (search_code,))
             branch = cur.fetchone()
         
         if branch:
@@ -112,4 +107,3 @@ async def get_ifsc_details(query_ifsc: str):
     finally:
         if conn:
             put_db_conn(conn)
-
