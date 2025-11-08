@@ -147,7 +147,7 @@
         // ⚠️ CRITICAL STEP ⚠️
         // Paste your public API URL from Render.com here.
         // It should look like: "https://ifsclookup-api.onrender.com"
-        const API_BASE_URL = "https://ifsclookup-api.onrender.com/"; 
+        const API_BASE_URL = "https://ifsclookup-api.onrender.com"; 
         
         // --- END: CONFIGURATION ---
 
@@ -174,7 +174,7 @@
         // Function to fetch data from your API
         async function fetchIfscDetails(ifsc) {
             if (!ifsc || ifsc.trim() === "") return;
-            if (API_BASE_URL === "YOUR_RENDER_API_URL_GOES_HERE") {
+            if (API_BASE_URL === "https://ifsclookup-api.onrender.com") {
                 showMessage("error", "API URL is not configured by the developer.");
                 return;
             }
