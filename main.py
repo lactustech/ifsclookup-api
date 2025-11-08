@@ -10,7 +10,7 @@ from typing import Optional
 
 # Get the database connection string from an environment variable
 # This is a security best practice. We'll set this in our hosting platform.
-DATABASE_URL = os.environ.get("postgresql://neondb_owner:npg_zcYOQMFNVA86@ep-super-dawn-ahfja50j-pooler.c-3.us-east-1.aws.neon.tech/neondb?sslmode=require&channel_binding=require")
+DATABASE_URL = os.environ.get("NEON_CONNECTION_STRING")
 
 def get_db_connection():
     """Establishes a connection to the database."""
@@ -103,4 +103,5 @@ def get_ifsc_details(ifsc_code: str):
         
     finally:
         if conn:
+
             conn.close()
