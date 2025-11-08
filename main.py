@@ -88,7 +88,7 @@ def get_ifsc_details(ifsc_code: str):
     try:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
             # RealDictCursor returns results as dictionaries (like JSON)
-            cur.execute("SELECT * FROM branches WHERE TRIM(ifsc) = %s", (query_ifsc,))
+            cur.execute("SELECT * FROM branches WHERE REGEXP_REPLACE(UPPER(ifsc), '[^A-Z0-9]', '', 'g') = %s", (query_ifsc,))
             branch = cur.fetchone()
         
         if branch:
@@ -105,4 +105,5 @@ def get_ifsc_details(ifsc_code: str):
         if conn:
 
             conn.close()
+
 
