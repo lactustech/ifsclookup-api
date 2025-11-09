@@ -50,11 +50,48 @@ templates = Jinja2Templates(directory="templates")
 
 # --- Helper Function ---
 def slugify(value):
+    if not value:
+        return ""
     value = str(value)
     value = unicodedata.normalize('NFKD', value).encode('ascii', 'ignore').decode('ascii')
     value = re.sub(r'[^\w\s-]', '', value).strip().lower()
     value = re.sub(r'[-\s]+', '-', value)
     return value
+
+# --- Helper to find real names from slugs ---
+# This is inefficient, but required for our DB structure.
+def get_real_names(conn, bank_slug=None, state_slug=None, city_slug=None):
+    real_bank_name = None
+    real_state_name = None
+    real_city_name = None
+    
+    with conn.cursor(cursor_factory=RealDictCursor) as cur:
+        if bank_slug:
+            cur.execute("SELECT DISTINCT bank FROM branches")
+            for row in cur.fetchall():
+                if slugify(row['bank']) == bank_slug:
+                    real_bank_name = row['bank']
+                    break
+            if not real_bank_name: raise HTTPException(status_code=404, detail="Bank not found")
+        
+        if state_slug and real_bank_name:
+            cur.execute("SELECT DISTINCT state FROM branches WHERE bank = %s", (real_bank_name,))
+            for row in cur.fetchall():
+                if slugify(row['state']) == state_slug:
+                    real_state_name = row['state']
+                    break
+            if not real_state_name: raise HTTPException(status_code=404, detail="State not found for this bank")
+
+        if city_slug and real_bank_name and real_state_name:
+            cur.execute("SELECT DISTINCT city FROM branches WHERE bank = %s AND state = %s", (real_bank_name, real_state_name))
+            for row in cur.fetchall():
+                if slugify(row['city']) == city_slug:
+                    real_city_name = row['city']
+                    break
+            if not real_city_name: raise HTTPException(status_code=404, detail="City not found for this bank/state")
+            
+    return real_bank_name, real_state_name, real_city_name
+
 
 # --- HTML Page Endpoints (Your Website) ---
 
@@ -89,33 +126,13 @@ async def get_banks_list(request: Request, conn=Depends(get_db_conn)):
             "error": "Could not load bank list."
         })
 
-# --- === NEW ENDPOINT (THE FIX) === ---
-# This new endpoint catches the /bank/... URLs
 @app.get("/bank/{bank_slug}", response_class=HTMLResponse)
 async def get_states_list(request: Request, bank_slug: str, conn=Depends(get_db_conn)):
-    """
-    Serves the page listing all states for a specific bank.
-    """
     state_list = []
-    real_bank_name = ""
-    
     try:
-        with conn.cursor(cursor_factory=RealDictCursor) as cur:
-            # This is tricky: we have to find the *real bank name* from the slug
-            # This is a bit slow, but necessary with our data structure.
-            cur.execute("SELECT DISTINCT bank FROM branches")
-            all_banks = cur.fetchall()
-            
-            for row in all_banks:
-                if slugify(row['bank']) == bank_slug:
-                    real_bank_name = row['bank']
-                    break
-            
-            if not real_bank_name:
-                # If no bank matches the slug, return a 404
-                raise HTTPException(status_code=404, detail="Bank not found")
+        real_bank_name, _, _ = get_real_names(conn, bank_slug=bank_slug)
 
-            # Now, find all states for that bank
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
             cur.execute(
                 "SELECT DISTINCT state FROM branches WHERE bank = %s ORDER BY state ASC", 
                 (real_bank_name,)
@@ -137,11 +154,86 @@ async def get_states_list(request: Request, bank_slug: str, conn=Depends(get_db_
             
     except Exception as e:
         print(f"Error getting states list: {e}")
-        # Send user back to the banks list on error
-        return templates.TemplateResponse("banks_list.html", {
-            "request": request, 
-            "error": f"Could not load states for {bank_slug}."
+        raise HTTPException(status_code=404, detail=f"Error: {e}")
+
+
+# --- === NEW ENDPOINT 1 === ---
+@app.get("/bank/{bank_slug}/{state_slug}", response_class=HTMLResponse)
+async def get_cities_list(request: Request, bank_slug: str, state_slug: str, conn=Depends(get_db_conn)):
+    """
+    Serves the page listing all cities for a specific bank and state.
+    """
+    city_list = []
+    try:
+        real_bank_name, real_state_name, _ = get_real_names(conn, bank_slug=bank_slug, state_slug=state_slug)
+
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute(
+                "SELECT DISTINCT city FROM branches WHERE bank = %s AND state = %s ORDER BY city ASC", 
+                (real_bank_name, real_state_name)
+            )
+            cities = cur.fetchall()
+            
+            for row in cities:
+                city_list.append({
+                    "city_name": row['city'],
+                    "city_slug": slugify(row['city'])
+                })
+        
+        return templates.TemplateResponse("cities_list.html", {
+            "request": request,
+            "bank_name": real_bank_name,
+            "bank_slug": bank_slug,
+            "state_name": real_state_name,
+            "state_slug": state_slug,
+            "cities": city_list
         })
+            
+    except Exception as e:
+        print(f"Error getting cities list: {e}")
+        raise HTTPException(status_code=404, detail=f"Error: {e}")
+
+
+# --- === NEW ENDPOINT 2 === ---
+@app.get("/bank/{bank_slug}/{state_slug}/{city_slug}", response_class=HTMLResponse)
+async def get_branches_list(request: Request, bank_slug: str, state_slug: str, city_slug: str, conn=Depends(get_db_conn)):
+    """
+    Serves the page listing all branches for a specific bank, state, and city.
+    This is the final level of the browse path.
+    """
+    branch_list = []
+    try:
+        real_bank_name, real_state_name, real_city_name = get_real_names(
+            conn, bank_slug=bank_slug, state_slug=state_slug, city_slug=city_slug
+        )
+
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute(
+                "SELECT branch, ifsc FROM branches WHERE bank = %s AND state = %s AND city = %s ORDER BY branch ASC", 
+                (real_bank_name, real_state_name, real_city_name)
+            )
+            branches = cur.fetchall()
+            
+            for row in branches:
+                branch_list.append({
+                    "branch_name": row['branch'],
+                    "ifsc_code": row['ifsc']
+                })
+        
+        return templates.TemplateResponse("branches_list.html", {
+            "request": request,
+            "bank_name": real_bank_name,
+            "bank_slug": bank_slug,
+            "state_name": real_state_name,
+            "state_slug": state_slug,
+            "city_name": real_city_name,
+            "city_slug": city_slug,
+            "branches": branch_list
+        })
+            
+    except Exception as e:
+        print(f"Error getting branches list: {e}")
+        raise HTTPException(status_code=404, detail=f"Error: {e}")
 
 
 @app.get("/ifsc/{code}", response_class=HTMLResponse)
