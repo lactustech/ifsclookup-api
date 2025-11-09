@@ -5,11 +5,12 @@ import unicodedata
 from fastapi import FastAPI, HTTPException, Request, Depends
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
-from starlette.responses import Response, StreamingResponse # Keep this
+from starlette.responses import Response, StreamingResponse # New import
 import psycopg2
 from psycopg2.pool import SimpleConnectionPool
 from psycopg2.extras import RealDictCursor
-import io
+import io # New import for sitemap
+import math # New import for sitemap
 
 # --- App Setup ---
 app = FastAPI(
@@ -310,58 +311,80 @@ Sitemap: https://ifsclookup.in/sitemap.xml
     return Response(content=content, media_type="text/plain")
 
 
-# --- NEW: sitemap.xml (FIXED) ---
-async def sitemap_generator():
+# --- PAGINATED SITEMAP (THE FIX) ---
+SITEMAP_PAGE_SIZE = 20000
+
+@app.get("/sitemap.xml", response_class=Response)
+async def get_sitemap_index(request: Request, conn=Depends(get_db_conn)):
     """
-    A generator function that streams the sitemap XML content.
-    Handles its own database connection to avoid pool timeouts.
+    This is the sitemap index. It points to all the sub-sitemaps.
     """
+    base_url = "https://ifsclookup.in"
+    sitemap_content = io.StringIO()
+    sitemap_content.write('<?xml version="1.0" encoding="UTF-8"?>\n')
+    sitemap_content.write('<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n')
+    
+    # 1. Add static pages
+    sitemap_content.write(f'  <sitemap><loc>{base_url}/</loc></sitemap>\n')
+    sitemap_content.write(f'  <sitemap><loc>{base_url}/banks</loc></sitemap>\n')
+
+    # 2. Add dynamic pages (one sitemap for every 20,000 branches)
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT COUNT(*) FROM branches")
+            total_branches = cur.fetchone()[0]
+            
+        num_pages = math.ceil(total_branches / SITEMAP_PAGE_SIZE)
+        
+        for i in range(num_pages):
+            page_num = i + 1
+            sitemap_content.write(f'  <sitemap><loc>{base_url}/sitemap-branches-{page_num}.xml</loc></sitemap>\n')
+        
+    except Exception as e:
+        print(f"Error generating sitemap index: {e}")
+        
+    sitemap_content.write('</sitemapindex>\n')
+    return Response(content=sitemap_content.getvalue(), media_type="application/xml")
+
+
+async def sitemap_branches_generator(conn, page: int):
+    """
+    Streams a single sitemap page for 20,000 branches.
+    """
+    base_url = "https://ifsclookup.in"
+    offset = (page - 1) * SITEMAP_PAGE_SIZE
+    
     yield '<?xml version="1.0" encoding="UTF-8"?>\n'
     yield '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
     
-    # Add static pages
-    yield '  <url><loc>https://ifsclookup.in/</loc><priority>1.0</priority></url>\n'
-    yield '  <url><loc>https://ifsclookup.in/banks</loc><priority>0.8</priority></url>\n'
-    
-    conn = None
-    pool = get_db_pool()
-    
-    if pool is None:
-        print("Sitemap Error: Database pool not initialized")
-        yield '</urlset>\n'
-        return
-
     try:
-        conn = pool.getconn()
-        
-        # Use a "named cursor" for server-side streaming
-        # This is the critical fix to prevent memory crashes.
-        with conn.cursor(name='sitemap_cursor', cursor_factory=RealDictCursor) as cur:
-            cur.itersize = 2000 # Fetch 2000 rows at a time
-            print("Sitemap: Starting to stream branch URLs...")
-            cur.execute("SELECT ifsc FROM branches")
+        # Use a named cursor for streaming
+        with conn.cursor(name=f'sitemap_page_{page}', cursor_factory=RealDictCursor) as cur:
+            cur.itersize = 1000 # Fetch 1000 at a time from the 20k
             
-            # Iterate over the cursor, which fetches in chunks (no .fetchall())
+            sql_query = """
+                SELECT ifsc FROM branches 
+                ORDER BY ifsc 
+                LIMIT %s OFFSET %s
+            """
+            cur.execute(sql_query, (SITEMAP_PAGE_SIZE, offset))
+            
             for row in cur:
-                ifsc = row['ifsc']
-                # Clean the IFSC just in case
-                ifsc_clean = "".join(c for c in ifsc if c.isalnum()).upper()
-                if ifsc_clean:
-                    yield f'  <url><loc>https://ifsclookup.in/ifsc/{ifsc_clean}</loc><priority>0.6</priority></url>\n'
-            
-            print("Sitemap: Finished streaming branch URLs.")
-            
+                ifsc = "".join(c for c in row['ifsc'] if c.isalnum()).upper()
+                if ifsc:
+                    yield f'  <url><loc>{base_url}/ifsc/{ifsc}</loc><priority>0.6</priority></url>\n'
+                    
     except Exception as e:
-        print(f"Sitemap generation error: {e}")
+        print(f"Error generating sitemap page {page}: {e}")
     finally:
-        if conn:
-            pool.putconn(conn) # Always return connection to pool
         yield '</urlset>\n'
 
-@app.get("/sitemap.xml", response_class=Response)
-async def get_sitemap(): # Removed conn=Depends
-    # Call the generator directly
-    return StreamingResponse(sitemap_generator(), media_type="application/xml")
+@app.get("/sitemap-branches-{page}.xml", response_class=Response)
+async def get_sitemap_branches_page(page: int, conn=Depends(get_db_conn)):
+    """
+    Serves a specific page of the branches sitemap.
+    """
+    return StreamingResponse(sitemap_branches_generator(conn, page), media_type="application/xml")
 
 
 # --- Uvicorn Server (for Render) ---
