@@ -317,7 +317,7 @@ async def get_sitemap_static():
     """
     This sitemap contains the static/main pages.
     """
-    base_url = "https://ifsclookup.in"
+    base_url = "https://ifsclookup.in" # <-- CORRECTED
     content = io.StringIO()
     content.write('<?xml version="1.0" encoding="UTF-8"?>\n')
     content.write('<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n')
@@ -336,7 +336,7 @@ async def get_sitemap_banks(conn=Depends(get_db_conn)):
     """
     This sitemap contains the /bank/{bank_slug} pages.
     """
-    base_url = "https://ifsclookup.in"
+    base_url = "https://ifsclookup.in" # <-- CORRECTED
     content = io.StringIO()
     content.write('<?xml version="1.0" encoding="UTF-8"?>\n')
     content.write('<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n')
@@ -361,7 +361,7 @@ async def get_sitemap_states(conn=Depends(get_db_conn)):
     """
     This sitemap contains the /bank/{bank_slug}/{state_slug} pages.
     """
-    base_url = "https://ifsclookup.in"
+    base_url = "https://ifsclookup.in" # <-- CORRECTED
     content = io.StringIO()
     content.write('<?xml version="1.0" encoding="UTF-8"?>\n')
     content.write('<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n')
@@ -382,11 +382,13 @@ async def get_sitemap_states(conn=Depends(get_db_conn)):
 
 
 # --- NEW SITEMAP SECTION: City List Pages (Paginated) ---
+SITEMAP_PAGE_SIZE = 20000 # Re-declared for clarity, though already defined
+
 async def sitemap_cities_generator(conn, page: int):
     """
     Streams a single sitemap page for city-level pages.
     """
-    base_url = "https://ifsclookup.in"
+    base_url = "https://ifsclookup.in" # <-- CORRECTED
     offset = (page - 1) * SITEMAP_PAGE_SIZE
     
     yield '<?xml version="1.0" encoding="UTF-8"?>\n'
@@ -425,14 +427,14 @@ async def get_sitemap_cities_page(page: int, conn=Depends(get_db_conn)):
 
 
 # --- SITEMAP SECTION: Branch Pages (Paginated) ---
-# (This section was already in your code and is correct)
+# (This section was already in your code)
 SITEMAP_PAGE_SIZE = 20000
 
 async def sitemap_branches_generator(conn, page: int):
     """
     Streams a single sitemap page for 20,000 branches.
     """
-    base_url = "https://ifsclookup.in"
+    base_url = "https://ifsclookup.in" # <-- CORRECTED
     offset = (page - 1) * SITEMAP_PAGE_SIZE
     
     yield '<?xml version="1.0" encoding="UTF-8"?>\n'
@@ -474,7 +476,7 @@ async def get_sitemap_index(request: Request, conn=Depends(get_db_conn)):
     """
     This is the sitemap index. It points to all the sub-sitemaps.
     """
-    base_url = "httpss://ifsclookup.in" # <-- TYPO FIXED
+    base_url = "https://ifsclookup.in" # <-- CORRECTED
     sitemap_content = io.StringIO()
     sitemap_content.write('<?xml version="1.0" encoding="UTF-8"?>\n')
     sitemap_content.write('<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n')
