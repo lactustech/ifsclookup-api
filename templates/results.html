@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <!-- 
+      This is the pSEO part. The title and description are
+      filled in by the server! 
+    -->
+    {% if data %}
+    <title>IFSC Code {{ data.ifsc }} - {{ data.branch }}, {{ data.city }}</title>
+    <meta name="description" content="Find details for IFSC Code {{ data.ifsc }}: {{ data.bank }}, {{ data.branch }} branch, {{ data.address }}, {{ data.city }}.">
+    {% else %}
+    <title>IFSC Code Not Found</title>
+    <meta name="description" content="The IFSC code {{ code }} was not found in our database.">
+    {% endif %}
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+    <!-- Header -->
+    <header class="bg-white shadow-sm">
+        <div class="container mx-auto max-w-4xl px-4 py-4">
+            <a href="/" class="text-2xl font-bold text-blue-700 no-underline">
+              ifsclookup.in
+            </a>
+            <p class="text-gray-600">Your Fast & Free Indian Bank IFSC Code Finder</p>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container mx-auto max-w-4xl p-4 mt-8">
+
+        <!-- This is a link to go back to the homepage -->
+        <a href="/" class="text-blue-600 hover:underline">&larr; Back to Search</a>
+        
+        <!-- Jinja2 logic: if we have data, show the results card. -->
+        {% if data %}
+        <div id="results-card" class="bg-white rounded-lg shadow-md overflow-hidden mt-4">
+            <div class="bg-gray-100 p-4 border-b border-gray-200">
+                <h1 class="text-xl font-semibold text-gray-900">{{ data.branch or 'N/A' }}</h1>
+                <p class="text-sm text-gray-600">{{ data.bank or 'N/A' }}</p>
+            </div>
+            <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+                <!-- Column 1 -->
+                <div>
+                    <h2 class="font-semibold text-gray-700">Branch Info</h2>
+                    <div class="mt-2 text-sm text-gray-600">
+                        <p class="py-2 border-b border-gray-100">
+                            <strong class="text-gray-800">IFSC:</strong> 
+                            <span class="font-mono">{{ data.ifsc }}</span>
+                        </p>
+                        <p class="py-2 border-b border-gray-100">
+                            <strong class="text-gray-800">MICR:</strong> 
+                            <span class="font-mono">{{ data.micr or 'N/A' }}</span>
+                        </p>
+                        <p class="py-2 border-b border-gray-100">
+                            <strong class="text-gray-800">Contact:</strong> 
+                            <span>{{ data.contact or 'N/A' }}</span>
+                        </p>
+                    </div>
+                </div>
+                <!-- Column 2 -->
+                <div>
+                    <h2 class="font-semibold text-gray-700">Location</h2>
+                    <div class="mt-2 text-sm text-gray-600">
+                        <p class="py-2 border-b border-gray-100">
+                            <strong class="text-gray-800">Address:</strong> 
+                            <span>{{ data.address or 'N/A' }}</span>
+                        </p>
+                        <p class="py-2 border-b border-gray-100">
+                            <strong class="text-gray-800">City:</strong> 
+                            <span>{{ data.city or 'N/A' }}</span>
+                        </p>
+                        <p class="py-2 border-b border-gray-100">
+                            <strong class="text-gray-800">State:</strong> 
+                            <span>{{ data.state or 'N/A' }}</span>
+                        </p>
+                    </div>
+                </div>
+                <!-- Column 3 (Full Width) -->
+                <div class="md:col-span-2">
+                      <h2 class="font-semibold text-gray-700">Payment Services</h2>
+                      <div class="mt-2 flex flex-wrap gap-2">
+                        <!-- We use Jinja2 'if' statements to style the badges -->
+                        <span class="px-3 py-1 text-xs font-medium rounded-full 
+                          {% if data.neft %}bg-green-100 text-green-800{% else %}bg-gray-100 text-gray-800{% endif %}">
+                          NEFT
+                        </span>
+                        <span class="px-3 py-1 text-xs font-medium rounded-full 
+                          {% if data.rtgs %}bg-green-100 text-green-800{% else %}bg-gray-100 text-gray-800{% endif %}">
+                          RTGS
+                        </span>
+                        <span class="px-3 py-1 text-xs font-medium rounded-full 
+                          {% if data.imps %}bg-green-100 text-green-800{% else %}bg-gray-100 text-gray-800{% endif %}">
+                          IMPS
+                        </span>
+                        <span class="px-3 py-1 text-xs font-medium rounded-full 
+                          {% if data.upi %}bg-green-100 text-green-800{% else %}bg-gray-100 text-gray-800{% endif %}">
+                          UPI
+                        </span>
+                      </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Jinja2 logic: if data is NOT found, show an error. -->
+        {% else %}
+        <div class="bg-red-100 border border-red-300 text-red-800 p-4 rounded-md mt-4">
+            <strong>Error 404: Not Found</strong>
+            <p>No details were found for the IFSC code <strong>{{ code }}</strong>. Please check the code and try again.</p>
+        </div>
+        {% endif %}
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="text-center p-8 mt-12 text-gray-500 text-sm">
+        <p>&copy; 2025 ifsclookup.in - A free utility. All data is sourced from respective banks and financial institutions.</p>
+    </footer>
+
+</body>
+</html>
