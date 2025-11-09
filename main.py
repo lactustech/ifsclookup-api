@@ -112,11 +112,15 @@ async def get_ifsc_page(request: Request, code: str, conn=Depends(get_db_conn)):
     branch_data = None
     try:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
-            # We use the robust query to find the data
-            cur.execute(
-                "SELECT * FROM branches WHERE REGEXP_REPLACE(UPPER(ifsc), '[^A-Z0-9]', '', 'g') = %s", 
-                (search_code,)
-            )
+            
+            # --- FIX ---
+            # Using triple-quotes (""") to make the SQL string multi-line safe
+            # This prevents the "unterminated string literal" error.
+            sql_query = """
+                SELECT * FROM branches 
+                WHERE REGEXP_REPLACE(UPPER(ifsc), '[^A-Z0-9]', '', 'g') = %s
+            """
+            cur.execute(sql_query, (search_code,))
             branch_data = cur.fetchone()
         
         # Pass the data (or None) to the results.html template
@@ -147,5 +151,28 @@ async def get_ifsc_api(code: str, conn=Depends(get_db_conn)):
     branch_data = None
     try:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
-            cur.execute(
-                "SELECT * FROM branches WHERE REGEXP_REPLACE(UPPER(ifsc), '[^A-Z
+
+            # --- FIX ---
+            # Using triple-quotes (""") to make the SQL string multi-line safe
+            # This prevents the "unterminated string literal" error.
+            sql_query = """
+                SELECT * FROM branches 
+                WHERE REGEXP_REPLACE(UPPER(ifsc), '[^A-Z0-9]', '', 'g') = %s
+            """
+            cur.execute(sql_query, (search_code,))
+            branch_data = cur.fetchone()
+        
+        if branch_data:
+            return branch_data
+        else:
+            raise HTTPException(status_code=404, detail="IFSC code not found")
+            
+    except Exception as e:
+        print(f"Error in API query: {e}")
+        raise HTTPException(status_code=500, detail="Internal server error")
+
+# --- Uvicorn Server (for Render) ---
+if __name__ == "__main__":
+    # This part is not strictly needed by Render, but good for local testing
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run("main:app", host="0.0.0.0", port=port, reload=True)
