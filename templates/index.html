@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IFSC Lookup | Find Bank Branch Details Instantly</title>
+    <meta name="description" content="Search and find any bank branch's IFSC code, address, contact, and more. Fast and free IFSC lookup for all Indian banks.">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+
+    <!-- Header -->
+    <header class="bg-white shadow-sm">
+        <div class="container mx-auto max-w-4xl px-4 py-4">
+            <h1 class="text-2xl font-bold text-blue-700">ifsclookup.in</h1>
+            <p class="text-gray-600">Your Fast & Free Indian Bank IFSC Code Finder</p>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="container mx-auto max-w-4xl p-4 mt-8">
+        
+        <!-- Search Section -->
+        <div class="bg-white p-6 rounded-lg shadow-md">
+            <h2 class="text-xl font-semibold text-gray-800 mb-4">Find Bank Details by IFSC Code</h2>
+            
+            <!-- 
+              This form now uses a simple GET request.
+              When you search for "SBIN0000628", it will send you to:
+              /ifsc/SBIN0000628
+            -->
+            <form 
+                id="ifsc-form" 
+                action="/ifsc/" 
+                method="GET" 
+                class="flex flex-col sm:flex-row gap-4"
+                onsubmit="this.action = '/ifsc/' + this.ifsc.value.toUpperCase();"
+            >
+                <input 
+                    type="text" 
+                    id="ifsc-input" 
+                    name="ifsc"
+                    placeholder="Enter 11-digit IFSC code (e.g., SBIN0000628)" 
+                    class="flex-grow p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    required
+                    maxlength="11"
+                    minlength="11"
+                    pattern="[A-Za-z]{4}0[A-Za-z0-9]{6}"
+                    title="Please enter a valid 11-character IFSC code (e.g., SBIN0000628)"
+                >
+                <button 
+                    type="submit" 
+                    class="bg-blue-600 text-white font-semibold py-3 px-6 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition duration-200"
+                >
+                    Search
+                </button>
+            </form>
+            <p class="text-xs text-gray-500 mt-2">Example: HDFC0000060, ICIC0000104, KKBK0000631</p>
+        </div>
+        
+        <div class="mt-8 bg-white p-6 rounded-lg shadow-md">
+          <h3 class="text-lg font-semibold">About This Site</h3>
+          <p class="mt-2 text-gray-600">
+            Welcome to ifsclookup.in! This site provides a fast, free, and accurate way to find details for any bank branch in India. Just enter an 11-digit IFSC code to get started.
+          </p>
+        </div>
+
+    </main>
+
+    <!-- Footer -->
+    <footer class="text-center p-8 mt-12 text-gray-500 text-sm">
+        <p>&copy; 2025 ifsclookup.in - A free utility. All data is sourced from respective banks and financial institutions.</p>
+    </footer>
+
+</body>
+</html>
