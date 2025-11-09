@@ -28,11 +28,6 @@
         <div class="bg-white p-6 rounded-lg shadow-md">
             <h2 class="text-xl font-semibold text-gray-800 mb-4">Find Bank Details by IFSC Code</h2>
             
-            <!-- 
-              This form now uses a simple GET request.
-              When you search for "SBIN0000628", it will send you to:
-              /ifsc/SBIN0000628
-            -->
             <form 
                 id="ifsc-form" 
                 action="/ifsc/" 
@@ -62,11 +57,16 @@
             <p class="text-xs text-gray-500 mt-2">Example: HDFC0000060, ICIC0000104, KKBK0000631</p>
         </div>
         
+        <!-- === NEW SECTION === -->
+        <!-- This is the new link block that helps Google find your other pages -->
         <div class="mt-8 bg-white p-6 rounded-lg shadow-md">
-          <h3 class="text-lg font-semibold">About This Site</h3>
+          <h3 class="text-lg font-semibold">Browse by Bank</h3>
           <p class="mt-2 text-gray-600">
-            Welcome to ifsclookup.in! This site provides a fast, free, and accurate way to find details for any bank branch in India. Just enter an 11-digit IFSC code to get started.
+            Don't know the IFSC code? Find your branch by browsing a full list of all banks.
           </p>
+          <a href="/banks" class="inline-block mt-4 bg-gray-100 text-gray-800 font-semibold py-3 px-5 rounded-md hover:bg-gray-200 transition duration-200">
+            View All Banks &rarr;
+          </a>
         </div>
 
     </main>

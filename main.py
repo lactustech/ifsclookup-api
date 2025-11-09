@@ -1,5 +1,7 @@
 import os
 import uvicorn
+import re
+import unicodedata
 from fastapi import FastAPI, HTTPException, Request, Depends
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
@@ -7,38 +9,18 @@ from fastapi.middleware.cors import CORSMiddleware
 import psycopg2
 from psycopg2.pool import SimpleConnectionPool
 from psycopg2.extras import RealDictCursor
-import re
 
 # --- App Setup ---
 app = FastAPI(
-    title="IFSC Lookup API & Web",
-    description="Serves both the API and the pSEO-friendly website.",
-    version="2.1.0" # Version bump
-)
-
-# --- Add HTML Templating ---
-templates = Jinja2Templates(directory="templates")
-
-# --- CORS (Cross-Origin Resource Sharing) ---
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    title="IFSC Lookup API & Frontend",
+    description="Serves bank details and HTML pages for ifsclookup.in",
+    version="2.0.0"
 )
 
 # --- Database Connection Pool ---
 db_pool = None
 
-# This is the NEW, SAFER way to get a DB connection
-def get_db_conn():
-    """
-    This function is a FastAPI "dependency".
-    It will be called for every request that needs a database connection.
-    It uses 'yield' to give the connection to the endpoint,
-    and the 'finally' block *guarantees* the connection is returned.
-    """
+def get_db_pool():
     global db_pool
     if db_pool is None:
         try:
@@ -49,82 +31,121 @@ def get_db_conn():
             print("Database connection pool created.")
         except Exception as e:
             print(f"Error creating connection pool: {e}")
-            raise HTTPException(status_code=503, detail="Database connection error")
-            
-    conn = None
+    return db_pool
+
+# --- Dependency Injection for DB Connection ---
+# This is the new, robust way to handle connections
+def get_db_conn():
+    pool = get_db_pool()
+    if pool is None:
+        raise HTTPException(status_code=503, detail="Database connection pool is not available")
     try:
-        conn = db_pool.getconn()
-        yield conn  # Provide the connection to the endpoint
-    except Exception as e:
-        print(f"Error getting connection from pool: {e}")
-        raise HTTPException(status_code=503, detail="Database connection error")
+        conn = pool.getconn()
+        yield conn
     finally:
         if conn:
-            db_pool.putconn(conn) # This will ALWAYS run, fixing the bug
+            pool.putconn(conn)
 
-# We no longer need the 'close_db_pool' handler,
-# Render will handle shutting down the app.
+# --- Jinja2 Template Setup ---
+# This tells FastAPI where to find your HTML files
+templates = Jinja2Templates(directory="templates")
 
 # --- Helper Function ---
-# Note: It now takes 'conn' as an argument!
-async def fetch_ifsc_data(query_ifsc: str, conn):
-    """Helper function to get data from the DB."""
-    search_code = query_ifsc.upper()
-    
-    if conn is None:
-        return None
-        
-    branch = None
-    try:
-        # We use 'with' to auto-close the cursor
-        with conn.cursor(cursor_factory=RealDictCursor) as cur:
-            cur.execute("SELECT * FROM branches WHERE ifsc = %s", (search_code,))
-            branch = cur.fetchone()
-        return branch
-    except Exception as e:
-        print(f"Error during query: {e}")
-        return None
-    # We no longer need a 'finally' block here, the dependency handles it.
+# This creates clean URLs (e.g., "State Bank of India" -> "state-bank-of-india")
+def slugify(value):
+    value = str(value)
+    value = unicodedata.normalize('NFKD', value).encode('ascii', 'ignore').decode('ascii')
+    value = re.sub(r'[^\w\s-]', '', value).strip().lower()
+    value = re.sub(r'[-\s]+', '-', value)
+    return value
 
-# --- 1. THE WEBSITE PAGES (pSEO) ---
+# --- HTML Page Endpoints (Your Website) ---
 
 @app.get("/", response_class=HTMLResponse)
 async def get_homepage(request: Request):
     """
-    Serves the homepage (index.html) with the search bar.
-    This endpoint does not need a database connection.
+    Serves the homepage (index.html).
     """
+    # This renders the index.html file inside the 'templates' folder
     return templates.TemplateResponse("index.html", {"request": request})
 
+
+@app.get("/banks", response_class=HTMLResponse)
+async def get_banks_list(request: Request, conn=Depends(get_db_conn)):
+    """
+    Serves the new page listing all unique banks.
+    This is a new endpoint for pSEO.
+    """
+    bank_list = []
+    try:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            # Get all unique bank names from the DB
+            cur.execute("SELECT DISTINCT bank FROM branches ORDER BY bank ASC")
+            rows = cur.fetchall()
+            
+            for row in rows:
+                bank_list.append({
+                    "bank_name": row['bank'],
+                    "bank_slug": slugify(row['bank']) # e.g., "state-bank-of-india"
+                })
+        
+        return templates.TemplateResponse("banks_list.html", {
+            "request": request,
+            "banks": bank_list
+        })
+            
+    except Exception as e:
+        print(f"Error getting bank list: {e}")
+        return templates.TemplateResponse("index.html", {
+            "request": request, 
+            "error": "Could not load bank list."
+        })
+
+
 @app.get("/ifsc/{code}", response_class=HTMLResponse)
-async def get_ifsc_page(request: Request, code: str, conn = Depends(get_db_conn)):
+async def get_ifsc_page(request: Request, code: str, conn=Depends(get_db_conn)):
     """
-    This is the PSEO PAGE.
-    FastAPI will automatically provide the 'conn' variable by calling get_db_conn.
+    Serves the pSEO results page for a specific IFSC code.
+    This is what Google will index.
     """
-    data = await fetch_ifsc_data(code, conn)
-    
-    return templates.TemplateResponse("results.html", {
-        "request": request,
-        "code": code,
-        "data": data 
-    })
+    search_code = code.upper()
+    branch_data = None
+    try:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            # We use the robust query to find the data
+            cur.execute(
+                "SELECT * FROM branches WHERE REGEXP_REPLACE(UPPER(ifsc), '[^A-Z0-9]', '', 'g') = %s", 
+                (search_code,)
+            )
+            branch_data = cur.fetchone()
+        
+        # Pass the data (or None) to the results.html template
+        return templates.TemplateResponse("results.html", {
+            "request": request,
+            "data": branch_data,
+            "code": search_code  # Pass the code for the error message if data is None
+        })
+            
+    except Exception as e:
+        print(f"Error getting IFSC page: {e}")
+        return templates.TemplateResponse("results.html", {
+            "request": request, 
+            "data": None, 
+            "code": search_code, 
+            "error": "A database error occurred."
+        })
 
-# --- 2. THE JSON API (for other people to use) ---
+# --- JSON API Endpoint (For future use, e.g., autocomplete) ---
 
-@app.get("/api/status")
-def read_root():
-    return {"status": "ok", "message": "IFSC Lookup API is running"}
-
-@app.get("/api/ifsc/{query_ifsc}")
-async def get_ifsc_api(query_ifsc: str, conn = Depends(get_db_conn)):
+@app.get("/api/ifsc/{code}")
+async def get_ifsc_api(code: str, conn=Depends(get_db_conn)):
     """
-    This is the JSON API endpoint.
-    It also gets the 'conn' variable from the dependency.
+    This is your original JSON API. We can keep it!
+    It's useful for testing or if you build an app.
     """
-    branch = await fetch_ifsc_data(query_ifsc, conn)
-    
-    if branch:
-        return branch
-    else:
-        raise HTTPException(status_code=404, detail="IFSC code not found")
+    search_code = code.upper()
+    branch_data = None
+    try:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            cur.execute(
+                "SELECT * FROM branches WHERE REGEXP_REPLACE(UPPER(ifsc), '[^A-Z
