@@ -38,7 +38,7 @@
                 action="/ifsc/" 
                 method="GET" 
                 class="flex flex-col sm:flex-row gap-4"
-                onsubmit="this.action = '/ifsc/' + this.ifsc.value.toUpperCase();"
+                onsubmit="event.preventDefault(); window.location.href = '/ifsc/' + document.getElementById('ifsc-input').value.toUpperCase();"
             >
                 <input 
                     type="text" 
