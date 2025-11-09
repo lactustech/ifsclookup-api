@@ -1,35 +1,52 @@
 {% extends "base.html" %}
 
-{% block title %}Browse All Banks in India | ifsclookup.in{% endblock %}
+<!-- Set the dynamic title and meta description -->
+{% block title %}Browse All Indian Banks | ifsclookup.in{% endblock %}
 {% block meta_description %}Browse a complete list of all banks in India participating in NEFT, RTGS, and IMPS to find your branch IFSC code.{% endblock %}
 
-{% block content %}
-<div class="container mx-auto max-w-4xl p-4 mt-8">
 
-    <!-- Breadcrumb Navigation -->
-    <nav class="text-sm text-gray-500 mb-4">
-        <a href="/" class="text-indigo-600 hover:underline">Home</a>
-        <span class="mx-2">&gt;</span>
-        <span class="text-gray-700">All Banks</span>
+{% block content %}
+<div class="container mx-auto max-w-4xl px-4 py-12">
+    
+    <!-- Breadcrumbs -->
+    <nav class="text-sm text-gray-500 mb-4" aria-label="Breadcrumb">
+        <ol class="list-none p-0 inline-flex">
+            <li class="flex items-center">
+                <a href="/" class="hover:text-indigo-600">Home</a>
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 mx-2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                </svg>
+            </li>
+            <li>
+                <span class="text-gray-700 font-medium">All Banks</span>
+            </li>
+        </ol>
     </nav>
     
-    <div class="bg-white rounded-lg shadow-md overflow-hidden">
-        <div class="bg-gray-100 p-4 border-b border-gray-200">
-            <h1 class="text-xl font-semibold text-gray-900">Browse by Bank</h1>
-        </div>
-        
-        <div class="p-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-        {% if banks %}
-            {% for bank in banks %}
-            <a href="/bank/{{ bank.bank_slug }}" class="block p-3 bg-gray-50 rounded-md hover:bg-gray-100 text-gray-800 hover:text-indigo-600 transition duration-150">
-                {{ bank.bank_name }}
-            </a>
-            {% endfor %}
-        {% else %}
-            <p class="text-gray-600">Could not load bank list.</p>
-        {% endif %}
-        </div>
+    <h1 class="text-3xl font-extrabold text-gray-900">Browse by Bank</h1>
+    <p class="text-lg text-gray-600 mt-1">Select a bank to see all available states.</p>
+
+    <!-- Bank List -->
+    <div class="bg-white rounded-xl shadow-lg overflow-hidden mt-8">
+        <ul class="divide-y divide-gray-200">
+            {% if banks %}
+                {% for bank in banks %}
+                <li>
+                    <a href="/bank/{{ bank.bank_slug }}" class="flex justify-between items-center p-6 hover:bg-gray-50 transition-colors">
+                        <div>
+                            <p class="font-semibold text-indigo-600">{{ bank.bank_name }}</p>
+                            <p class="text-sm text-gray-500">{{ bank.branch_count }} branches</p>
+                        </div>
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                        </svg>
+                    </a>
+                </li>
+                {% endfor %}
+            {% else %}
+                <li class="p-6 text-gray-600">Could not load bank list.</li>
+            {% endif %}
+        </ul>
     </div>
-    
 </div>
 {% endblock %}

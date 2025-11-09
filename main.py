@@ -5,10 +5,11 @@ import unicodedata
 from fastapi import FastAPI, HTTPException, Request, Depends
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
-from fastapi.middleware.cors import CORSMiddleware
+from starlette.responses import Response, StreamingResponse # New import
 import psycopg2
 from psycopg2.pool import SimpleConnectionPool
 from psycopg2.extras import RealDictCursor
+import io # New import for sitemap
 
 # --- App Setup ---
 app = FastAPI(
@@ -38,6 +39,7 @@ def get_db_conn():
     pool = get_db_pool()
     if pool is None:
         raise HTTPException(status_code=503, detail="Database connection pool is not available")
+    conn = None # Initialize conn
     try:
         conn = pool.getconn()
         yield conn
@@ -59,7 +61,6 @@ def slugify(value):
     return value
 
 # --- Helper to find real names from slugs ---
-# This is inefficient, but required for our DB structure.
 def get_real_names(conn, bank_slug=None, state_slug=None, city_slug=None):
     real_bank_name = None
     real_state_name = None
@@ -105,13 +106,14 @@ async def get_banks_list(request: Request, conn=Depends(get_db_conn)):
     bank_list = []
     try:
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
-            cur.execute("SELECT DISTINCT bank FROM branches ORDER BY bank ASC")
+            cur.execute("SELECT bank, COUNT(*) as branch_count FROM branches GROUP BY bank ORDER BY bank ASC")
             rows = cur.fetchall()
             
             for row in rows:
                 bank_list.append({
                     "bank_name": row['bank'],
-                    "bank_slug": slugify(row['bank'])
+                    "bank_slug": slugify(row['bank']),
+                    "branch_count": row['branch_count']
                 })
         
         return templates.TemplateResponse("banks_list.html", {
@@ -134,7 +136,7 @@ async def get_states_list(request: Request, bank_slug: str, conn=Depends(get_db_
 
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
             cur.execute(
-                "SELECT DISTINCT state FROM branches WHERE bank = %s ORDER BY state ASC", 
+                "SELECT state, COUNT(*) as branch_count FROM branches WHERE bank = %s GROUP BY state ORDER BY state ASC", 
                 (real_bank_name,)
             )
             states = cur.fetchall()
@@ -142,7 +144,8 @@ async def get_states_list(request: Request, bank_slug: str, conn=Depends(get_db_
             for row in states:
                 state_list.append({
                     "state_name": row['state'],
-                    "state_slug": slugify(row['state'])
+                    "state_slug": slugify(row['state']),
+                    "branch_count": row['branch_count']
                 })
         
         return templates.TemplateResponse("states_list.html", {
@@ -157,19 +160,15 @@ async def get_states_list(request: Request, bank_slug: str, conn=Depends(get_db_
         raise HTTPException(status_code=404, detail=f"Error: {e}")
 
 
-# --- === NEW ENDPOINT 1 === ---
 @app.get("/bank/{bank_slug}/{state_slug}", response_class=HTMLResponse)
 async def get_cities_list(request: Request, bank_slug: str, state_slug: str, conn=Depends(get_db_conn)):
-    """
-    Serves the page listing all cities for a specific bank and state.
-    """
     city_list = []
     try:
         real_bank_name, real_state_name, _ = get_real_names(conn, bank_slug=bank_slug, state_slug=state_slug)
 
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
             cur.execute(
-                "SELECT DISTINCT city FROM branches WHERE bank = %s AND state = %s ORDER BY city ASC", 
+                "SELECT city, COUNT(*) as branch_count FROM branches WHERE bank = %s AND state = %s GROUP BY city ORDER BY city ASC", 
                 (real_bank_name, real_state_name)
             )
             cities = cur.fetchall()
@@ -177,7 +176,8 @@ async def get_cities_list(request: Request, bank_slug: str, state_slug: str, con
             for row in cities:
                 city_list.append({
                     "city_name": row['city'],
-                    "city_slug": slugify(row['city'])
+                    "city_slug": slugify(row['city']),
+                    "branch_count": row['branch_count']
                 })
         
         return templates.TemplateResponse("cities_list.html", {
@@ -194,13 +194,8 @@ async def get_cities_list(request: Request, bank_slug: str, state_slug: str, con
         raise HTTPException(status_code=404, detail=f"Error: {e}")
 
 
-# --- === NEW ENDPOINT 2 === ---
 @app.get("/bank/{bank_slug}/{state_slug}/{city_slug}", response_class=HTMLResponse)
 async def get_branches_list(request: Request, bank_slug: str, state_slug: str, city_slug: str, conn=Depends(get_db_conn)):
-    """
-    Serves the page listing all branches for a specific bank, state, and city.
-    This is the final level of the browse path.
-    """
     branch_list = []
     try:
         real_bank_name, real_state_name, real_city_name = get_real_names(
@@ -209,7 +204,11 @@ async def get_branches_list(request: Request, bank_slug: str, state_slug: str, c
 
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
             cur.execute(
-                "SELECT branch, ifsc FROM branches WHERE bank = %s AND state = %s AND city = %s ORDER BY branch ASC", 
+                """
+                SELECT branch, ifsc, address FROM branches 
+                WHERE bank = %s AND state = %s AND city = %s 
+                ORDER BY branch ASC
+                """, 
                 (real_bank_name, real_state_name, real_city_name)
             )
             branches = cur.fetchall()
@@ -217,7 +216,8 @@ async def get_branches_list(request: Request, bank_slug: str, state_slug: str, c
             for row in branches:
                 branch_list.append({
                     "branch_name": row['branch'],
-                    "ifsc_code": row['ifsc']
+                    "ifsc_code": row['ifsc'],
+                    "address": row['address']
                 })
         
         return templates.TemplateResponse("branches_list.html", {
@@ -249,22 +249,34 @@ async def get_ifsc_page(request: Request, code: str, conn=Depends(get_db_conn)):
             cur.execute(sql_query, (search_code,))
             branch_data = cur.fetchone()
         
+        # We need slugs for the breadcrumbs
+        bank_slug = ""
+        state_slug = ""
+        city_slug = ""
+        if branch_data:
+            bank_slug = slugify(branch_data.get('bank'))
+            state_slug = slugify(branch_data.get('state'))
+            city_slug = slugify(branch_data.get('city'))
+
         return templates.TemplateResponse("results.html", {
             "request": request,
-            "data": branch_data,
-            "code": search_code
+            "branch": branch_data, # Pass 'branch' not 'data'
+            "code": search_code,
+            "bank_slug": bank_slug,
+            "state_slug": state_slug,
+            "city_slug": city_slug
         })
             
     except Exception as e:
         print(f"Error getting IFSC page: {e}")
         return templates.TemplateResponse("results.html", {
             "request": request, 
-            "data": None, 
+            "branch": None, 
             "code": search_code, 
             "error": "A database error occurred."
         })
 
-# --- JSON API Endpoint ---
+# --- JSON API Endpoint (for future use / 3rd parties) ---
 @app.get("/api/ifsc/{code}")
 async def get_ifsc_api(code: str, conn=Depends(get_db_conn)):
     search_code = code.upper()
@@ -286,6 +298,49 @@ async def get_ifsc_api(code: str, conn=Depends(get_db_conn)):
     except Exception as e:
         print(f"Error in API query: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
+
+# --- NEW: robots.txt ---
+@app.get("/robots.txt", response_class=Response)
+async def get_robots_txt():
+    content = """
+User-agent: *
+Allow: /
+Sitemap: https://ifsclookup.in/sitemap.xml
+""".strip()
+    return Response(content=content, media_type="text/plain")
+
+
+# --- NEW: sitemap.xml ---
+async def sitemap_generator(conn):
+    """
+    A generator function that streams the sitemap XML content.
+    """
+    yield '<?xml version="1.0" encoding="UTF-8"?>\n'
+    yield '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
+    
+    # Add static pages
+    yield '  <url><loc>https://ifsclookup.in/</loc><priority>1.0</priority></url>\n'
+    yield '  <url><loc>https://ifsclookup.in/banks</loc><priority>0.8</priority></url>\n'
+
+    try:
+        with conn.cursor(cursor_factory=RealDictCursor) as cur:
+            # This is a HEAVY query, but we stream it.
+            print("Sitemap: Starting to stream branch URLs...")
+            cur.execute("SELECT ifsc FROM branches")
+            for row in cur.fetchall():
+                ifsc = row['ifsc']
+                yield f'  <url><loc>https://ifsclookup.in/ifsc/{ifsc}</loc><priority>0.6</priority></url>\n'
+            print("Sitemap: Finished streaming branch URLs.")
+            
+    except Exception as e:
+        print(f"Sitemap generation error: {e}")
+    finally:
+        yield '</urlset>\n'
+
+@app.get("/sitemap.xml", response_class=Response)
+async def get_sitemap(conn=Depends(get_db_conn)):
+    return StreamingResponse(sitemap_generator(conn), media_type="application/xml")
+
 
 # --- Uvicorn Server (for Render) ---
 if __name__ == "__main__":

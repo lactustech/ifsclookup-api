@@ -1,43 +1,66 @@
 {% extends "base.html" %}
 
-{% block title %}Branches for {{ bank_name }} in {{ city_name }}, {{ state_name }} | ifsclookup.in{% endblock %}
+<!-- Set the dynamic title and meta description -->
+{% block title %}Branches in {{ city_name }}, {{ state_name }} for {{ bank_name }} | ifsclookup.in{% endblock %}
 {% block meta_description %}Browse all branches for {{ bank_name }} in {{ city_name }}, {{ state_name }} to find the correct IFSC code.{% endblock %}
 
-{% block content %}
-<div class="container mx-auto max-w-4xl p-4 mt-8">
 
-    <!-- Breadcrumb Navigation -->
-    <nav class="text-sm text-gray-500 mb-4">
-        <a href="/" class="text-indigo-600 hover:underline">Home</a>
-        <span class="mx-2">&gt;</span>
-        <a href="/banks" class="text-indigo-600 hover:underline">All Banks</a>
-        <span class="mx-2">&gt;</span>
-        <a href="/bank/{{ bank_slug }}" class="text-indigo-600 hover:underline">{{ bank_name }}</a>
-        <span class="mx-2">&gt;</span>
-        <a href="/bank/{{ bank_slug }}/{{ state_slug }}" class="text-indigo-600 hover:underline">{{ state_name }}</a>
-        <span class="mx-2">&gt;</span>
-        <span class="text-gray-700">{{ city_name }}</span>
+{% block content %}
+<div class="container mx-auto max-w-4xl px-4 py-12">
+
+    <!-- Breadcrumbs -->
+    <nav class="text-sm text-gray-500 mb-4" aria-label="Breadcrumb">
+        <ol class="list-none p-0 inline-flex flex-wrap">
+            <li class="flex items-center">
+                <a href="/" class="hover:text-indigo-600">Home</a>
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 mx-2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                </svg>
+            </li>
+            <li class="flex items-center">
+                 <a href="/banks" class="hover:text-indigo-600">All Banks</a>
+                 <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 mx-2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                </svg>
+            </li>
+            <li class="flex items-center">
+                <a href="/bank/{{ bank_slug }}" class="hover:text-indigo-600">{{ bank_name }}</a>
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 mx-2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                </svg>
+            </li>
+            <li class="flex items-center">
+                <a href="/bank/{{ bank_slug }}/{{ state_slug }}" class="hover:text-indigo-600">{{ state_name }}</a>
+                 <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 mx-2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                </svg>
+            </li>
+            <li>
+                <span class="text-gray-700 font-medium">{{ city_name }}</span>
+            </li>
+        </ol>
     </nav>
     
-    <div class="bg-white rounded-lg shadow-md overflow-hidden">
-        <div class="bg-gray-100 p-4 border-b border-gray-200">
-            <h1 class="text-xl font-semibold text-gray-900">Browse Branches for {{ bank_name }} in {{ city_name }}</h1>
-        </div>
-        
-        <div class="p-6 flex flex-col divide-y divide-gray-100">
-        {% if branches %}
-            {% for branch in branches %}
-            <!-- This is the FINAL link that points to your "money page" -->
-            <a href="/ifsc/{{ branch.ifsc_code }}" class="block py-4 px-2 -mx-2 rounded-md hover:bg-gray-50 text-gray-800 hover:text-indigo-600 transition duration-150">
-                <span class="font-semibold">{{ branch.branch_name }}</span>
-                <span class="block text-sm text-gray-600 font-mono mt-1">{{ branch.ifsc_code }}</span>
-            </a>
-            {% endfor %}
-        {% else %}
-            <p class="text-gray-600">Could not load branches for this location.</p>
-        {% endif %}
-        </div>
+    <h1 class="text-3xl font-extrabold text-gray-900">Browse Branches in {{ city_name }}</h1>
+    <p class="text-lg text-gray-600 mt-1">For {{ bank_name }} in {{ state_name }}. Select a branch to see details.</p>
+
+    <!-- Branches List -->
+    <div class="bg-white rounded-xl shadow-lg overflow-hidden mt-8">
+        <ul class="divide-y divide-gray-200">
+            {% if branches %}
+                {% for branch in branches %}
+                <li>
+                    <a href="/ifsc/{{ branch.ifsc_code }}" class="block p-6 hover:bg-gray-50 transition-colors">
+                        <p class="font-semibold text-indigo-600">{{ branch.branch_name }}</B></p>
+                        <p class="text-sm text-gray-500 font-mono mt-1">{{ branch.ifsc_code }}</p>
+                        <p class="text-sm text-gray-600 mt-2">{{ branch.address }}</p>
+                    </a>
+                </li>
+                {% endfor %}
+            {% else %}
+                <li class="p-6 text-gray-600">Could not load branches for this location.</li>
+            {% endif %}
+        </ul>
     </div>
-    
 </div>
 {% endblock %}
