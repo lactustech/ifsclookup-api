@@ -1,153 +1,117 @@
 {% extends "base.html" %}
 
-{% block title %}
-{% if data %}
-    {{ data.ifsc }} - {{ data.branch }}, {{ data.city }} | ifsclookup.in
-{% else %}
-    IFSC Code Not Found | ifsclookup.in
-{% endif %}
-{% endblock %}
-
-{% block meta_description %}
-{% if data %}
-    Find complete details for IFSC code {{ data.ifsc }}: {{ data.branch }} branch, {{ data.bank }}, {{ data.address }}, {{ data.city }}, {{ data.state }}.
-{% else %}
-    The IFSC code {{ code }} was not found. Please double-check the code and try your search again.
-{% endif %}
-{% endblock %}
+{% block title %}{{ branch.ifsc }} - {{ branch.branch }}, {{ branch.bank }} | IFSC Code{% endblock %}
 
 {% block content %}
-<div class="container mx-auto max-w-4xl p-4 mt-8">
-    <!-- Search Bar (copied from homepage for convenience) -->
-    <div class="bg-white p-6 rounded-lg shadow-md mb-8">
-        <h2 class="text-xl font-semibold text-gray-800 mb-4">Find Another Code</h2>
-        <form id="ifsc-form" method="GET" 
-              onsubmit="event.preventDefault(); window.location.href = '/ifsc/' + document.getElementById('ifsc-input').value.toUpperCase();">
-            <div class="flex flex-col sm:flex-row gap-4">
-                <input 
-                    type="text" 
-                    id="ifsc-input" 
-                    name="ifsc"
-                    placeholder="Enter 11-digit IFSC code" 
-                    class="flex-grow p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    required maxlength="11" minlength="11" pattern="[A-Za-z]{4}0[A-Za-z0-9]{6}"
-                    value="{{ code | default('', true) }}">
-                <button type="submit" class="bg-indigo-600 text-white font-semibold py-3 px-6 rounded-md hover:bg-indigo-700 transition duration-200">
-                    Search
-                </button>
-            </div>
-        </form>
-    </div>
+<div class="container mx-auto max-w-4xl px-4 py-12">
+    
+    <!-- Breadcrumbs -->
+    <nav class="text-sm text-gray-500 mb-4" aria-label="Breadcrumb">
+        <ol class="list-none p-0 inline-flex">
+            <li class="flex items-center">
+                <a href="/" class="hover:text-indigo-600">Home</a>
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 mx-2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                </svg>
+            </li>
+            <li class="flex items-center">
+                <a href="/banks" class="hover:text-indigo-600">Banks</a>
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 mx-2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                </svg>
+            </li>
+            <!-- The bank_slug, state_slug, city_slug are passed from main.py -->
+            <li class="flex items-center">
+                <a href="/bank/{{ bank_slug }}" class="hover:text-indigo-600">{{ branch.bank }}</a>
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 mx-2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                </svg>
+            </li>
+             <li class="flex items-center">
+                <a href="/bank/{{ bank_slug }}/{{ state_slug }}" class="hover:text-indigo-600">{{ branch.state }}</a>
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 mx-2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                </svg>
+            </li>
+             <li class="flex items-center">
+                <a href="/bank/{{ bank_slug }}/{{ state_slug }}/{{ city_slug }}" class="hover:text-indigo-600">{{ branch.city }}</a>
+            </li>
+        </ol>
+    </nav>
 
-    <!-- Results Section -->
-    {% if data %}
-        <div class="bg-white rounded-lg shadow-md overflow-hidden">
-            <div class="bg-gradient-to-r from-indigo-600 to-purple-600 p-6">
-                <h1 class="text-2xl font-bold text-white">{{ data.branch }}</h1>
-                <p class="text-lg text-indigo-100">{{ data.bank }}</p>
+    <!-- Main Title -->
+    <h1 class="text-3xl font-extrabold text-gray-900">{{ branch.bank }}</h1>
+    <h2 class="text-2xl font-semibold text-gray-700 mt-1">{{ branch.branch }} Branch Details</h2>
+
+    <!-- Results Card -->
+    <div class="bg-white rounded-xl shadow-2xl overflow-hidden mt-8">
+        <div class="p-6 md:p-8 grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
+            
+            <!-- IFSC -->
+            <div class="py-3 sm:col-span-1">
+                <dt class="text-sm font-medium text-gray-500">IFSC Code</dt>
+                <dd class="mt-1 text-2xl font-semibold font-mono text-gray-900">{{ branch.ifsc }}</dd>
             </div>
             
-            <div class="p-6 grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-6">
-                
-                <!-- Helper function to display a data row -->
-                {% macro data_row(label, value, ifsc_code=None) %}
-                    <div class="py-3 border-b border-gray-100">
-                        <dt class="text-sm font-medium text-gray-500">{{ label }}</dt>
-                        <dd class="mt-1 text-base font-semibold text-gray-900">
-                            <span id="{{ ifsc_code | default('', true) }}">{{ value | default('N/A', true) }}</span>
-                            {% if ifsc_code %}
-                            <button onclick="copyToClipboard('{{ ifsc_code }}', '{{ value }}')" class="ml-2 text-xs font-medium text-indigo-600 hover:text-indigo-800">[copy]</button>
-                            {% endif %}
-                        </dd>
-                    </div>
-                {% endmacro %}
+            <!-- MICR -->
+            <div class="py-3 sm:col-span-1">
+                <dt class="text-sm font-medium text-gray-500">MICR Code</dt>
+                <dd class="mt-1 text-2xl font-semibold font-mono text-gray-900">{{ branch.micr or 'N/A' }}</dd>
+            </div>
 
-                <!-- Helper function to display a boolean service tag -->
-                {% macro service_tag(label, enabled) %}
-                    <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium
-                                 {% if enabled %} bg-green-100 text-green-800 {% else %} bg-gray-100 text-gray-600 {% endif %}">
-                        {{ label }}
+            <!-- Address -->
+            <div class="py-3 sm:col-span-2">
+                <dt class="text-sm font-medium text-gray-500">Address</dt>
+                <dd class="mt-1 text-base text-gray-900">{{ branch.address }}</dd>
+            </div>
+            
+            <!-- Contact -->
+            <div class="py-3 sm:col-span-1">
+                <dt class="text-sm font-medium text-gray-500">Contact</dt>
+                <dd class="mt-1 text-base text-gray-900">{{ branch.contact or 'N/A' }}</dd>
+            </div>
+            
+            <!-- City -->
+            <div class="py-3 sm:col-span-1">
+                <dt class="text-sm font-medium text-gray-500">City</dt>
+                <dd class="mt-1 text-base text-gray-900">{{ branch.city }}</dd>
+            </div>
+
+            <!-- District -->
+            <div class="py-3 sm:col-span-1">
+                <dt class="text-sm font-medium text-gray-500">District</dt>
+                <dd class="mt-1 text-base text-gray-900">{{ branch.district }}</dd>
+            </div>
+            
+            <!-- State -->
+            <div class="py-3 sm:col-span-1">
+                <dt class="text-sm font-medium text-gray-500">State</dt>
+                <dd class="mt-1 text-base text-gray-900">{{ branch.state }}</dd>
+            </div>
+
+            <!-- Payment Services -->
+            <div class="py-3 sm:col-span-2">
+                <dt class="text-sm font-medium text-gray-500 mb-2">Payment Services</dt>
+                <dd class="flex flex-wrap gap-2">
+                    <span class="px-3 py-1 text-xs font-medium rounded-full
+                        {% if branch.neft %} bg-green-100 text-green-800 {% else %} bg-gray-100 text-gray-800 {% endif %}">
+                        NEFT
                     </span>
-                {% endmacro %}
-
-                <!-- Left Column -->
-                <div>
-                    {{ data_row('IFSC Code', data.ifsc, 'ifsc-code') }}
-                    {{ data_row('MICR Code', data.micr, 'micr-code') }}
-                    {{ data_row('Contact', data.contact) }}
-                </div>
-                
-                <!-- Right Column -->
-                <div>
-                    {{ data_row('City', data.city) }}
-                    {{ data_row('District', data.district) }}
-                    {{ data_row('State', data.state) }}
-                </div>
-
-                <!-- Full Width Address -->
-                <div class="md:col-span-2">
-                    {{ data_row('Address', data.address) }}
-                </div>
-                
-                <!-- Full Width Services -->
-                <div class="md:col-span-2">
-                    <dt class="text-sm font-medium text-gray-500">Payment Services</dt>
-                    <dd class="mt-2 flex flex-wrap gap-2">
-                        {{ service_tag('NEFT', data.neft) }}
-                        {{ service_tag('RTGS', data.rtgs) }}
-                        {{ service_tag('IMPS', data.imps) }}
-                        {{ service_tag('UPI', data.upi) }}
-                    </dd>
-                </div>
+                    <span class="px-3 py-1 text-xs font-medium rounded-full
+                        {% if branch.rtgs %} bg-green-100 text-green-800 {% else %} bg-gray-100 text-gray-800 {% endif %}">
+                        RTGS
+                    </span>
+                    <span class="px-3 py-1 text-xs font-medium rounded-full
+                        {% if branch.imps %} bg-green-100 text-green-800 {% else %} bg-gray-100 text-gray-800 {% endif %}">
+                        IMPS
+                    </span>
+                     <span class="px-3 py-1 text-xs font-medium rounded-full
+                        {% if branch.upi %} bg-green-100 text-green-800 {% else %} bg-gray-100 text-gray-800 {% endif %}">
+                        UPI
+                    </span>
+                </dd>
             </div>
         </div>
-
-    {% elif error %}
-        <div class="bg-red-100 border border-red-300 text-red-800 p-4 rounded-md">
-            <strong class="font-semibold">Error:</strong> {{ error }}
-        </div>
-    {% else %}
-        <div class="bg-red-100 border border-red-300 text-red-800 p-4 rounded-md">
-            <strong class="font-semibold">Not Found:</strong> No details found for IFSC code <strong>{{ code }}</strong>. Please check the code and try again.
-        </div>
-    {% endif %}
-
-    <!-- Message box for copy-to-clipboard -->
-    <div id="message-box" class="fixed bottom-4 right-4"></div>
-
+    </div>
 </div>
-
-<script>
-    // Function to show a temporary "Copied!" message
-    function showMessage(message) {
-        const box = document.getElementById('message-box');
-        const alert = document.createElement('div');
-        alert.className = 'p-3 bg-green-600 text-white rounded-md shadow-lg transition-all duration-300 ease-in-out';
-        alert.textContent = message;
-        
-        box.appendChild(alert);
-        
-        setTimeout(() => {
-            alert.style.opacity = '0';
-            setTimeout(() => {
-                box.removeChild(alert);
-            }, 300);
-        }, 2000);
-    }
-
-    // Function to copy text to clipboard
-    function copyToClipboard(elementId, text) {
-        try {
-            const textArea = document.createElement("textarea");
-            textArea.value = text;
-            document.body.appendChild(textArea);
-            textArea.select();
-            document.execCommand("copy");
-            document.body.removeChild(textArea);
-            showMessage(`Copied "${text}" to clipboard!`);
-        } catch (err) {
-            showMessage("Failed to copy text.");
-        }
-    }
-</script>
 {% endblock %}

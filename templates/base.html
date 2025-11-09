@@ -1,68 +1,118 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="h-full bg-gray-50">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     
-    <!-- This title and description will be overridden by each page -->
-    <title>{% block title %}ifsclookup.in | Fast & Free Indian Bank IFSC Code Finder{% endblock %}</title>
-    <meta name="description" content="{% block meta_description %}Fast, accurate, and free IFSC code lookup for all Indian bank branches. Search by IFSC code or browse by bank, state, and city.{% endblock %}">
+    <!-- This title block will be overridden by other pages -->
+    <title>{% block title %}IFSC Lookup | Find Bank Branch Details Instantly{% endblock %}</title>
     
+    <meta name="description" content="Search and find any bank branch's IFSC code, address, contact, and more. Fast and free IFSC lookup for all Indian banks.">
+    
+    <!-- 1. Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- 2. Google Font (Inter) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    
     <style>
-        body { 
+        body {
             font-family: 'Inter', sans-serif;
-            background-color: #f8f9fa; /* Light gray background */
         }
+        /* This creates the purple-to-blue gradient text */
         .hero-gradient-text {
-            background: -webkit-linear-gradient(270deg, #4F46E5, #8B5CF6);
+            background: linear-gradient(to right, #6366F1, #3B82F6);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
         }
+        /* This creates the purple-to-blue gradient button */
         .btn-gradient {
-            background-image: linear-gradient(to right, #4f46e5 0%, #8b5cf6 100%);
+            background-image: linear-gradient(to right, #6366F1 0%, #3B82F6 51%, #6366F1 100%);
+            background-size: 200% auto;
+            transition: 0.5s;
         }
         .btn-gradient:hover {
-            background-image: linear-gradient(to right, #4338ca 0%, #7c3aed 100%);
+            background-position: right center; /* change the direction of the change here */
         }
     </style>
 </head>
-<body class="bg-gray-50 min-h-screen flex flex-col">
+<body class="h-full flex flex-col">
 
     <!-- Header -->
-    <header class="bg-white shadow-sm sticky top-0 z-50">
-        <nav class="container mx-auto max-w-5xl px-4 py-4 flex justify-between items-center">
-            <!-- Logo -->
-            <a href="/" class="flex items-center gap-2">
-                <span class="flex justify-center items-center w-8 h-8 bg-indigo-600 rounded-full">
-                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                    </svg>
-                </span>
-                <span class="text-xl font-bold text-gray-800">IFSC Lookup</span>
-            </a>
-            <!-- Nav Links (for future)
-            <div class="hidden md:flex items-center gap-6 text-sm font-medium text-gray-600">
-                <a href="/" class="hover:text-indigo-600">Home</a>
-                <a href="#" class="hover:text-indigo-600">API Docs</a>
-                <a href="#" class="hover:text-indigo-600">Login</a>
-                <a href="#" class="px-4 py-2 bg-indigo-600 text-white rounded-md hover:bg-indigo-700">Get Started</a>
-            </div>
-            -->
-        </nav>
+    <header class="bg-white/95 backdrop-blur-sm shadow-sm fixed w-full z-10">
+        <div class="container mx-auto max-w-6xl px-4">
+            <nav class="flex justify-between items-center h-20">
+                <!-- Logo -->
+                <a href="/" class="text-2xl font-bold text-indigo-600">
+                    ifsclookup.in
+                </a>
+                
+                <!-- Navigation -->
+                <div class="hidden md:flex items-center space-x-6">
+                    <a href="/" class="text-gray-600 hover:text-indigo-600">Home</a>
+                    <a href="/banks" class="text-gray-600 hover:text-indigo-600">Browse Banks</a>
+                    <a href="#" class="text-gray-400 cursor-not-allowed" title="Coming Soon">API Docs</a>
+                    <a href="#" class="text-gray-400 cursor-not-allowed" title="Coming Soon">Login</a>
+                </div>
+
+                <!-- CTA Button -->
+                <div>
+                     <a href="/" class="btn-gradient text-white font-semibold py-2 px-4 rounded-md text-sm transition-all shadow-md hover:shadow-lg">
+                        Search
+                    </a>
+                </div>
+            </nav>
+        </div>
     </header>
 
-    <!-- Main Content Block -->
-    <main class="flex-grow">
-        {% block content %}
-        <!-- Child templates will put their content here -->
-        {% endblock %}
+    <!-- Main Content -->
+    <!-- mt-20 adds padding to offset the fixed header -->
+    <main class="flex-grow mt-20">
+        {% block content %}{% endblock %}
     </main>
 
     <!-- Footer -->
-    <footer class="text-center p-8 mt-16 text-gray-500 text-sm">
-        <p>&copy; 2025 ifsclookup.in - A free utility. All data is sourced from respective banks and financial institutions.</p>
+    <footer class="bg-gray-800 text-gray-400">
+        <div class="container mx-auto max-w-6xl px-4 py-16">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
+                <!-- Column 1 -->
+                <div>
+                    <h4 class="text-xl font-bold text-white mb-4">ifsclookup.in</h4>
+                    <p class="text-sm">
+                        A fast, free, and open-source utility for finding Indian bank branch information.
+                    </p>
+                </div>
+                <!-- Column 2 -->
+                <div>
+                    <h5 class="font-semibold text-gray-200 mb-4">Quick Links</h5>
+                    <ul class="space-y-2 text-sm">
+                        <li><a href="/" class="hover:text-white">Search</a></li>
+                        <li><a href="/banks" class="hover:text-white">Browse by Bank</a></li>
+                    </ul>
+                </div>
+                <!-- Column 3 -->
+                <div>
+                    <h5 class="font-semibold text-gray-200 mb-4">Legal</h5>
+                    <ul class="space-y-2 text-sm">
+                        <li><a href="#" class="hover:text-white">Privacy Policy</a></li>
+                        <li><a href="#" class="hover:text-white">Terms of Service</a></li>
+                    </ul>
+                </div>
+                <!-- Column 4 -->
+                 <div>
+                    <h5 class="font-semibold text-gray-200 mb-4">About</h5>
+                    <ul class="space-y-2 text-sm">
+                        <li><a href="#" class="hover:text-white">About Us</a></li>
+                        <li><a href="#" class="hover:text-white">Contact</a></li>
+                    </ul>
+                </div>
+            </div>
+            <div class="border-t border-gray-700 mt-12 pt-8 text-center text-sm">
+                <p>&copy; 2025 ifsclookup.in. All rights reserved. Not affiliated with any bank or financial institution.</p>
+            </div>
+        </div>
     </footer>
 
 </body>
