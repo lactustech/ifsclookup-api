@@ -1,6 +1,6 @@
 import os
 import uvicorn
-from fastapi import FastAPI, HTTPException, Request
+from fastapi import FastAPI, HTTPException, Request, Depends
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.middleware.cors import CORSMiddleware
@@ -13,15 +13,13 @@ import re
 app = FastAPI(
     title="IFSC Lookup API & Web",
     description="Serves both the API and the pSEO-friendly website.",
-    version="2.0.0"
+    version="2.1.0" # Version bump
 )
 
 # --- Add HTML Templating ---
-# This tells FastAPI to look for HTML files in a folder named "templates"
 templates = Jinja2Templates(directory="templates")
 
 # --- CORS (Cross-Origin Resource Sharing) ---
-# This is still needed for any future tools you build.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -30,10 +28,17 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# --- Database Connection Pool (No changes) ---
+# --- Database Connection Pool ---
 db_pool = None
 
-async def get_db_conn():
+# This is the NEW, SAFER way to get a DB connection
+def get_db_conn():
+    """
+    This function is a FastAPI "dependency".
+    It will be called for every request that needs a database connection.
+    It uses 'yield' to give the connection to the endpoint,
+    and the 'finally' block *guarantees* the connection is returned.
+    """
     global db_pool
     if db_pool is None:
         try:
@@ -44,47 +49,42 @@ async def get_db_conn():
             print("Database connection pool created.")
         except Exception as e:
             print(f"Error creating connection pool: {e}")
-            return None
+            raise HTTPException(status_code=503, detail="Database connection error")
+            
+    conn = None
     try:
         conn = db_pool.getconn()
-        return conn
+        yield conn  # Provide the connection to the endpoint
     except Exception as e:
         print(f"Error getting connection from pool: {e}")
-        return None
+        raise HTTPException(status_code=503, detail="Database connection error")
+    finally:
+        if conn:
+            db_pool.putconn(conn) # This will ALWAYS run, fixing the bug
 
-def put_db_conn(conn):
-    if db_pool:
-        db_pool.putconn(conn)
-
-async def close_db_pool():
-    if db_pool:
-        db_pool.closeall()
-        print("Database connection pool closed.")
-
-app.add_event_handler("shutdown", close_db_pool)
+# We no longer need the 'close_db_pool' handler,
+# Render will handle shutting down the app.
 
 # --- Helper Function ---
-async def fetch_ifsc_data(query_ifsc: str):
+# Note: It now takes 'conn' as an argument!
+async def fetch_ifsc_data(query_ifsc: str, conn):
     """Helper function to get data from the DB."""
     search_code = query_ifsc.upper()
     
-    conn = await get_db_conn()
     if conn is None:
         return None
         
     branch = None
     try:
+        # We use 'with' to auto-close the cursor
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
-            # We use the clean, fast query
             cur.execute("SELECT * FROM branches WHERE ifsc = %s", (search_code,))
             branch = cur.fetchone()
         return branch
     except Exception as e:
         print(f"Error during query: {e}")
         return None
-    finally:
-        if conn:
-            put_db_conn(conn)
+    # We no longer need a 'finally' block here, the dependency handles it.
 
 # --- 1. THE WEBSITE PAGES (pSEO) ---
 
@@ -92,38 +92,37 @@ async def fetch_ifsc_data(query_ifsc: str):
 async def get_homepage(request: Request):
     """
     Serves the homepage (index.html) with the search bar.
+    This endpoint does not need a database connection.
     """
-    # The "request" object is required by Jinja2
     return templates.TemplateResponse("index.html", {"request": request})
 
 @app.get("/ifsc/{code}", response_class=HTMLResponse)
-async def get_ifsc_page(request: Request, code: str):
+async def get_ifsc_page(request: Request, code: str, conn = Depends(get_db_conn)):
     """
-    This is the PSEO PAGE, just like your competitor!
-    It gets a code, fetches the data, and renders the results.html page.
+    This is the PSEO PAGE.
+    FastAPI will automatically provide the 'conn' variable by calling get_db_conn.
     """
-    data = await fetch_ifsc_data(code)
+    data = await fetch_ifsc_data(code, conn)
     
-    # We pass the data to the results.html template
     return templates.TemplateResponse("results.html", {
         "request": request,
         "code": code,
-        "data": data  # This will be None if not found, and the template will handle it
+        "data": data 
     })
 
 # --- 2. THE JSON API (for other people to use) ---
-# We'll put this on a separate path like "/api/"
 
 @app.get("/api/status")
 def read_root():
     return {"status": "ok", "message": "IFSC Lookup API is running"}
 
 @app.get("/api/ifsc/{query_ifsc}")
-async def get_ifsc_api(query_ifsc: str):
+async def get_ifsc_api(query_ifsc: str, conn = Depends(get_db_conn)):
     """
     This is the JSON API endpoint.
+    It also gets the 'conn' variable from the dependency.
     """
-    branch = await fetch_ifsc_data(query_ifsc)
+    branch = await fetch_ifsc_data(query_ifsc, conn)
     
     if branch:
         return branch
