@@ -137,14 +137,13 @@
 
     <!-- Footer -->
     <footer class="text-center p-8 mt-12 text-gray-500 text-sm">
-        <p>&copy; 2025 Ujwal Jayendran ifsclookup.in - A free utility. All data is sourced from respective banks and financial institutions.</p>
+        <p>&copy; 2025 ifsclookup.in - A free utility. All data is sourced from respective banks and financial institutions.</p>
     </footer>
 
     <!-- 3. JavaScript -->
     <script>
         // --- START: CONFIGURATION ---
         
-        // ⚠️ CRITICAL STEP ⚠️
         // Paste your public API URL from Render.com here.
         // It should look like: "https://ifsclookup-api.onrender.com"
         const API_BASE_URL = "https://ifsclookup-api.onrender.com"; 
@@ -175,7 +174,6 @@
         async function fetchIfscDetails(ifsc) {
             if (!ifsc || ifsc.trim() === "") return;
             
-            // ⚠️ CRITICAL FIX ⚠️
             // The check below was faulty and has been commented out.
             /*
             if (API_BASE_URL === "https://ifsclookup-api.onrender.com") {
