@@ -137,7 +137,7 @@ async def get_states_list(request: Request, bank_slug: str, conn=Depends(get_db_
 
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
             cur.execute(
-                "SELECT state, COUNT(*) as branch_count FROM branches WHERE bank = %s GROUP BY state ORDER BY state ASC", 
+                "SELECT state, COUNT(*) as branch.count FROM branches WHERE bank = %s GROUP BY state ORDER BY state ASC", 
                 (real_bank_name,)
             )
             states = cur.fetchall()
@@ -146,7 +146,7 @@ async def get_states_list(request: Request, bank_slug: str, conn=Depends(get_db_
                 state_list.append({
                     "state_name": row['state'],
                     "state_slug": slugify(row['state']),
-                    "branch_count": row['branch_count']
+                    "branch_count": row['branch.count']
                 })
         
         return templates.TemplateResponse("states_list.html", {
@@ -169,7 +169,7 @@ async def get_cities_list(request: Request, bank_slug: str, state_slug: str, con
 
         with conn.cursor(cursor_factory=RealDictCursor) as cur:
             cur.execute(
-                "SELECT city, COUNT(*) as branch_count FROM branches WHERE bank = %s AND state = %s GROUP BY city ORDER BY city ASC", 
+                "SELECT city, COUNT(*) as branch.count FROM branches WHERE bank = %s AND state = %s GROUP BY city ORDER BY city ASC", 
                 (real_bank_name, real_state_name)
             )
             cities = cur.fetchall()
@@ -178,7 +178,7 @@ async def get_cities_list(request: Request, bank_slug: str, state_slug: str, con
                 city_list.append({
                     "city_name": row['city'],
                     "city_slug": slugify(row['city']),
-                    "branch_count": row['branch_count']
+                    "branch_count": row['branch.count']
                 })
         
         return templates.TemplateResponse("cities_list.html", {
@@ -317,7 +317,7 @@ async def get_sitemap_static():
     """
     This sitemap contains the static/main pages.
     """
-    base_url = "https://ifsclookup.in" # <-- CORRECTED
+    base_url = "https://ifsclookup.in"
     content = io.StringIO()
     content.write('<?xml version="1.0" encoding="UTF-8"?>\n')
     content.write('<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n')
@@ -336,7 +336,7 @@ async def get_sitemap_banks(conn=Depends(get_db_conn)):
     """
     This sitemap contains the /bank/{bank_slug} pages.
     """
-    base_url = "https://ifsclookup.in" # <-- CORRECTED
+    base_url = "https://ifsclookup.in"
     content = io.StringIO()
     content.write('<?xml version="1.0" encoding="UTF-8"?>\n')
     content.write('<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n')
@@ -361,7 +361,7 @@ async def get_sitemap_states(conn=Depends(get_db_conn)):
     """
     This sitemap contains the /bank/{bank_slug}/{state_slug} pages.
     """
-    base_url = "https://ifsclookup.in" # <-- CORRECTED
+    base_url = "https://ifsclookup.in"
     content = io.StringIO()
     content.write('<?xml version="1.0" encoding="UTF-8"?>\n')
     content.write('<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n')
@@ -382,13 +382,13 @@ async def get_sitemap_states(conn=Depends(get_db_conn)):
 
 
 # --- NEW SITEMAP SECTION: City List Pages (Paginated) ---
-SITEMAP_PAGE_SIZE = 20000 # Re-declared for clarity, though already defined
+SITEMAP_PAGE_SIZE = 20000
 
 async def sitemap_cities_generator(conn, page: int):
     """
     Streams a single sitemap page for city-level pages.
     """
-    base_url = "https://ifsclookup.in" # <-- CORRECTED
+    base_url = "https://ifsclookup.in"
     offset = (page - 1) * SITEMAP_PAGE_SIZE
     
     yield '<?xml version="1.0" encoding="UTF-8"?>\n'
@@ -427,14 +427,11 @@ async def get_sitemap_cities_page(page: int, conn=Depends(get_db_conn)):
 
 
 # --- SITEMAP SECTION: Branch Pages (Paginated) ---
-# (This section was already in your code)
-SITEMAP_PAGE_SIZE = 20000
-
 async def sitemap_branches_generator(conn, page: int):
     """
     Streams a single sitemap page for 20,000 branches.
     """
-    base_url = "https://ifsclookup.in" # <-- CORRECTED
+    base_url = "https://ifsclookup.in"
     offset = (page - 1) * SITEMAP_PAGE_SIZE
     
     yield '<?xml version="1.0" encoding="UTF-8"?>\n'
@@ -476,7 +473,7 @@ async def get_sitemap_index(request: Request, conn=Depends(get_db_conn)):
     """
     This is the sitemap index. It points to all the sub-sitemaps.
     """
-    base_url = "https://ifsclookup.in" # <-- CORRECTED
+    base_url = "https://ifsclookup.in" # <-- CRITICAL FIX: Removed extra 's'
     sitemap_content = io.StringIO()
     sitemap_content.write('<?xml version="1.0" encoding="UTF-8"?>\n')
     sitemap_content.write('<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n')
@@ -493,8 +490,6 @@ async def get_sitemap_index(request: Request, conn=Depends(get_db_conn)):
 
         # 4. Add paginated city list sitemaps
         with conn.cursor() as cur:
-            # Note: This count query might be slow. If it times out, 
-            # you may need to optimize or cache the result.
             cur.execute("SELECT COUNT(DISTINCT (bank, state, city)) FROM branches")
             total_cities = cur.fetchone()[0]
             
@@ -515,7 +510,6 @@ async def get_sitemap_index(request: Request, conn=Depends(get_db_conn)):
         
     except Exception as e:
         print(f"Error generating sitemap index: {e}")
-        # Even if it fails, close the tag
         pass
         
     sitemap_content.write('</sitemapindex>\n')
