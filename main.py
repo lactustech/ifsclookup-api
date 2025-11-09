@@ -5,11 +5,11 @@ import unicodedata
 from fastapi import FastAPI, HTTPException, Request, Depends
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
-from starlette.responses import Response, StreamingResponse # New import
+from starlette.responses import Response, StreamingResponse # Keep this
 import psycopg2
 from psycopg2.pool import SimpleConnectionPool
 from psycopg2.extras import RealDictCursor
-import io # New import for sitemap
+import io
 
 # --- App Setup ---
 app = FastAPI(
@@ -299,7 +299,7 @@ async def get_ifsc_api(code: str, conn=Depends(get_db_conn)):
         print(f"Error in API query: {e}")
         raise HTTPException(status_code=500, detail="Internal server error")
 
-# --- NEW: robots.txt ---
+# --- robots.txt ---
 @app.get("/robots.txt", response_class=Response)
 async def get_robots_txt():
     content = """
@@ -310,10 +310,11 @@ Sitemap: https://ifsclookup.in/sitemap.xml
     return Response(content=content, media_type="text/plain")
 
 
-# --- NEW: sitemap.xml ---
-async def sitemap_generator(conn):
+# --- NEW: sitemap.xml (FIXED) ---
+async def sitemap_generator():
     """
     A generator function that streams the sitemap XML content.
+    Handles its own database connection to avoid pool timeouts.
     """
     yield '<?xml version="1.0" encoding="UTF-8"?>\n'
     yield '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n'
@@ -321,25 +322,46 @@ async def sitemap_generator(conn):
     # Add static pages
     yield '  <url><loc>https://ifsclookup.in/</loc><priority>1.0</priority></url>\n'
     yield '  <url><loc>https://ifsclookup.in/banks</loc><priority>0.8</priority></url>\n'
+    
+    conn = None
+    pool = get_db_pool()
+    
+    if pool is None:
+        print("Sitemap Error: Database pool not initialized")
+        yield '</urlset>\n'
+        return
 
     try:
-        with conn.cursor(cursor_factory=RealDictCursor) as cur:
-            # This is a HEAVY query, but we stream it.
+        conn = pool.getconn()
+        
+        # Use a "named cursor" for server-side streaming
+        # This is the critical fix to prevent memory crashes.
+        with conn.cursor(name='sitemap_cursor', cursor_factory=RealDictCursor) as cur:
+            cur.itersize = 2000 # Fetch 2000 rows at a time
             print("Sitemap: Starting to stream branch URLs...")
             cur.execute("SELECT ifsc FROM branches")
-            for row in cur.fetchall():
+            
+            # Iterate over the cursor, which fetches in chunks (no .fetchall())
+            for row in cur:
                 ifsc = row['ifsc']
-                yield f'  <url><loc>https://ifsclookup.in/ifsc/{ifsc}</loc><priority>0.6</priority></url>\n'
+                # Clean the IFSC just in case
+                ifsc_clean = "".join(c for c in ifsc if c.isalnum()).upper()
+                if ifsc_clean:
+                    yield f'  <url><loc>https://ifsclookup.in/ifsc/{ifsc_clean}</loc><priority>0.6</priority></url>\n'
+            
             print("Sitemap: Finished streaming branch URLs.")
             
     except Exception as e:
         print(f"Sitemap generation error: {e}")
     finally:
+        if conn:
+            pool.putconn(conn) # Always return connection to pool
         yield '</urlset>\n'
 
 @app.get("/sitemap.xml", response_class=Response)
-async def get_sitemap(conn=Depends(get_db_conn)):
-    return StreamingResponse(sitemap_generator(conn), media_type="application/xml")
+async def get_sitemap(): # Removed conn=Depends
+    # Call the generator directly
+    return StreamingResponse(sitemap_generator(), media_type="application/xml")
 
 
 # --- Uvicorn Server (for Render) ---
