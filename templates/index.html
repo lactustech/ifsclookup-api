@@ -1,80 +1,81 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IFSC Lookup | Find Bank Branch Details Instantly</title>
-    <meta name="description" content="Search and find any bank branch's IFSC code, address, contact, and more. Fast and free IFSC lookup for all Indian banks.">
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        body { font-family: 'Inter', sans-serif; }
-    </style>
-</head>
-<body class="bg-gray-50 min-h-screen">
+{% extends "base.html" %}
 
-    <!-- Header -->
-    <header class="bg-white shadow-sm">
-        <div class="container mx-auto max-w-4xl px-4 py-4">
-            <h1 class="text-2xl font-bold text-blue-700">ifsclookup.in</h1>
-            <p class="text-gray-600">Your Fast & Free Indian Bank IFSC Code Finder</p>
-        </div>
-    </header>
+{% block content %}
+<div class="relative overflow-hidden">
+    <!-- Hero Section -->
+    <div class="container mx-auto max-w-4xl px-4 pt-20 pb-16 text-center">
+        <h1 class="text-4xl md:text-6xl font-extrabold text-gray-900 leading-tight">
+            Find Any Indian Bank <span class="hero-gradient-text">IFSC Code</span>
+        </h1>
+        <p class="mt-4 text-lg text-gray-600 max-w-2xl mx-auto">
+            Fast, accurate, and free IFSC code lookup for all Indian bank branches. Search
+            by IFSC code or browse by location.
+        </p>
+    </div>
 
-    <!-- Main Content -->
-    <main class="container mx-auto max-w-4xl p-4 mt-8">
-        
-        <!-- Search Section -->
-        <div class="bg-white p-6 rounded-lg shadow-md">
-            <h2 class="text-xl font-semibold text-gray-800 mb-4">Find Bank Details by IFSC Code</h2>
-            
-            <form 
-                id="ifsc-form" 
-                action="/ifsc/" 
-                method="GET" 
-                class="flex flex-col sm:flex-row gap-4"
-                onsubmit="event.preventDefault(); window.location.href = '/ifsc/' + document.getElementById('ifsc-input').value.toUpperCase();"
-            >
-                <input 
-                    type="text" 
-                    id="ifsc-input" 
-                    name="ifsc"
-                    placeholder="Enter 11-digit IFSC code (e.g., SBIN0000628)" 
-                    class="flex-grow p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    required
-                    maxlength="11"
-                    minlength="11"
-                    pattern="[A-Za-z]{4}0[A-Za-z0-9]{6}"
-                    title="Please enter a valid 11-character IFSC code (e.g., SBIN0000628)"
-                >
-                <button 
-                    type="submit" 
-                    class="bg-blue-600 text-white font-semibold py-3 px-6 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition duration-200"
-                >
-                    Search
+    <!-- Search Box Section -->
+    <div class="container mx-auto max-w-3xl px-4">
+        <div class="bg-white rounded-xl shadow-2xl overflow-hidden">
+            <!-- Tabs -->
+            <div class="flex border-b border-gray-200">
+                <button class="flex-1 py-4 px-6 text-center font-semibold text-indigo-600 border-b-2 border-indigo-600">
+                    <span class="flex items-center justify-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                        Search by IFSC Code
+                    </span>
                 </button>
-            </form>
-            <p class="text-xs text-gray-500 mt-2">Example: HDFC0000060, ICIC0000104, KKBK0000631</p>
+                <a href="/banks" class="flex-1 py-4 px-6 text-center font-medium text-gray-500 hover:bg-gray-50">
+                    <span class="flex items-center justify-center gap-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                        </svg>
+                        Browse by Location
+                    </span>
+                </a>
+            </div>
+            
+            <!-- Search Form -->
+            <div class="p-6 md:p-8">
+                <form id="ifsc-form" method="GET" 
+                      onsubmit="event.preventDefault(); window.location.href = '/ifsc/' + document.getElementById('ifsc-input').value.toUpperCase();">
+                    
+                    <label for="ifsc-input" class="block text-sm font-medium text-gray-700">Enter IFSC Code</label>
+                    
+                    <div class="relative mt-2">
+                        <span class="absolute inset-y-0 left-0 flex items-center pl-3">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5.121 17.804A13.937 13.937 0 0112 16c2.5 0 4.847.655 6.879 1.804M15 10a3 3 0 11-6 0 3 3 0 016 0zm6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                        </span>
+                        <input 
+                            type="text" 
+                            id="ifsc-input" 
+                            name="ifsc"
+                            class="block w-full p-4 pl-10 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-indigo-500 text-lg" 
+                            placeholder="START TYPING IFSC CODE..." 
+                            required
+                            maxlength="11"
+                            minlength="11"
+                            pattern="[A-Za-z]{4}0[A-Za-z0-9]{6}"
+                            title="Please enter a valid 11-character IFSC code (e.g., SBIN0000628)">
+                    </div>
+                    
+                    <p class="text-xs text-gray-500 mt-2 ml-1">Example: HDFC0000060, ICIC0000104, KKBK0000631</p>
+                    
+                    <button type="submit" class="mt-6 w-full btn-gradient text-white font-semibold py-4 px-6 rounded-md text-lg focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 transition duration-200">
+                        <span class="flex items-center justify-center gap-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                            </svg>
+                            Search IFSC Code
+                        </span>
+                    </button>
+                </form>
+            </div>
         </div>
-        
-        <!-- === NEW SECTION === -->
-        <!-- This is the new link block that helps Google find your other pages -->
-        <div class="mt-8 bg-white p-6 rounded-lg shadow-md">
-          <h3 class="text-lg font-semibold">Browse by Bank</h3>
-          <p class="mt-2 text-gray-600">
-            Don't know the IFSC code? Find your branch by browsing a full list of all banks.
-          </p>
-          <a href="/banks" class="inline-block mt-4 bg-gray-100 text-gray-800 font-semibold py-3 px-5 rounded-md hover:bg-gray-200 transition duration-200">
-            View All Banks &rarr;
-          </a>
-        </div>
-
-    </main>
-
-    <!-- Footer -->
-    <footer class="text-center p-8 mt-12 text-gray-500 text-sm">
-        <p>&copy; 2025 ifsclookup.in - A free utility. All data is sourced from respective banks and financial institutions.</p>
-    </footer>
-
-</body>
-</html>
+    </div>
+</div>
+{% endblock %}

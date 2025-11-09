@@ -1,62 +1,35 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Browse All Banks in India | IFSC Lookup</title>
-    <meta name="description" content="Browse a complete list of all banks in India participating in the NEFT, RTGS, and IMPS systems.">
+{% extends "base.html" %}
+
+{% block title %}Browse All Banks in India | ifsclookup.in{% endblock %}
+{% block meta_description %}Browse a complete list of all banks in India participating in NEFT, RTGS, and IMPS to find your branch IFSC code.{% endblock %}
+
+{% block content %}
+<div class="container mx-auto max-w-4xl p-4 mt-8">
+
+    <!-- Breadcrumb Navigation -->
+    <nav class="text-sm text-gray-500 mb-4">
+        <a href="/" class="text-indigo-600 hover:underline">Home</a>
+        <span class="mx-2">&gt;</span>
+        <span class="text-gray-700">All Banks</span>
+    </nav>
     
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <style>
-        body { font-family: 'Inter', sans-serif; }
-    </style>
-</head>
-<body class="bg-gray-50 min-h-screen">
-
-    <!-- Header -->
-    <header class="bg-white shadow-sm">
-        <div class="container mx-auto max-w-4xl px-4 py-4">
-            <a href="/" class="text-2xl font-bold text-blue-700 no-underline">
-              ifsclookup.in
+    <div class="bg-white rounded-lg shadow-md overflow-hidden">
+        <div class="bg-gray-100 p-4 border-b border-gray-200">
+            <h1 class="text-xl font-semibold text-gray-900">Browse by Bank</h1>
+        </div>
+        
+        <div class="p-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
+        {% if banks %}
+            {% for bank in banks %}
+            <a href="/bank/{{ bank.bank_slug }}" class="block p-3 bg-gray-50 rounded-md hover:bg-gray-100 text-gray-800 hover:text-indigo-600 transition duration-150">
+                {{ bank.bank_name }}
             </a>
-            <p class="text-gray-600">Your Fast & Free Indian Bank IFSC Code Finder</p>
+            {% endfor %}
+        {% else %}
+            <p class="text-gray-600">Could not load bank list.</p>
+        {% endif %}
         </div>
-    </header>
-
-    <!-- Main Content -->
-    <main class="container mx-auto max-w-4xl p-4 mt-8">
-
-        <a href="/" class="text-blue-600 hover:underline">&larr; Back to Search</a>
-        
-        <div class="bg-white rounded-lg shadow-md overflow-hidden mt-4">
-            <div class="bg-gray-100 p-4 border-b border-gray-200">
-                <h1 class="text-xl font-semibold text-gray-900">Browse All Banks</h1>
-            </div>
-            
-            <!-- 
-              This is the list of banks.
-              We'll use Jinja2 to loop over the 'banks' data from the API.
-            -->
-            <div class="p-6 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-            {% if banks %}
-                {% for bank in banks %}
-                <a href="/bank/{{ bank.bank_slug }}" class="block p-3 bg-gray-50 rounded-md hover:bg-gray-100 text-gray-800 hover:text-blue-600 transition duration-150">
-                    {{ bank.bank_name }}
-                </a>
-                {% endfor %}
-            {% else %}
-                <p class="text-gray-600">Could not load bank list.</p>
-            {% endif %}
-            </div>
-        </div>
-        
-    </main>
-
-    <!-- Footer -->
-    <footer class="text-center p-8 mt-12 text-gray-500 text-sm">
-        <p>&copy; 2025 ifsclookup.in - A free utility. All data is sourced from respective banks and financial institutions.</p>
-    </footer>
-
-</body>
-</html>
+    </div>
+    
+</div>
+{% endblock %}
